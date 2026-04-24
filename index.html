@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuadro de mando — Impacto económico de ciberincidentes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-page:      #f5f4f0;
+  --bg-primary:   #ffffff;
+  --bg-secondary: #f1f0ec;
+  --text-primary:   #1a1a18;
+  --text-secondary: #6b6a65;
+  --border:       rgba(0,0,0,0.10);
+  --border-strong:rgba(0,0,0,0.18);
+  --accent-blue:  #185fa5;
+  --accent-blue-light: #e6f1fb;
+  --accent-green: #3b6d11;
+  --accent-green-light: #eaf3de;
+  --accent-amber: #854f0b;
+  --accent-amber-light: #faeeda;
+  --accent-red:   #a32d2d;
+  --accent-red-light: #fcebeb;
+  --accent-teal:  #0f6e56;
+  --accent-teal-light: #e1f5ee;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-page:      #1c1c1a;
+    --bg-primary:   #252523;
+    --bg-secondary: #2e2e2c;
+    --text-primary:   #f0ede8;
+    --text-secondary: #9a9890;
+    --border:       rgba(255,255,255,0.10);
+    --border-strong:rgba(255,255,255,0.18);
+    --accent-blue:  #85b7eb;
+    --accent-blue-light: #042c53;
+    --accent-green: #97c459;
+    --accent-green-light: #173404;
+    --accent-amber: #ef9f27;
+    --accent-amber-light: #412402;
+    --accent-red:   #f09595;
+    --accent-red-light: #501313;
+    --accent-teal:  #5dcaa5;
+    --accent-teal-light: #04342c;
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+header {
+  background: var(--bg-primary);
+  border-bottom: 0.5px solid var(--border-strong);
+  padding: 1.25rem 2rem;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+header h1 { font-size: 16px; font-weight: 500; }
+header span { font-size: 12px; color: var(--text-secondary); }
+
+.page { padding: 1.5rem 2rem; max-width: 1280px; margin: 0 auto; }
+
+.row { display: grid; gap: 12px; margin-bottom: 14px; }
+.row-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.row-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.row-3 { grid-template-columns: 2fr 1fr; }
+.row-bot { grid-template-columns: 1fr 1fr; }
+
+.metric {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+}
+.metric .lbl { font-size: 11px; color: var(--text-secondary); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
+.metric .val { font-size: 24px; font-weight: 500; color: var(--text-primary); }
+.metric .delta { font-size: 12px; margin-top: 4px; }
+.up   { color: var(--accent-red); }
+.dn   { color: var(--accent-teal); }
+
+.card {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+.card-title {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+.sep { border: none; border-top: 0.5px solid var(--border); margin: 1rem 0; }
+
+.ctrl { display: flex; flex-direction: column; gap: 4px; margin-bottom: 1rem; }
+.ctrl label { font-size: 12px; color: var(--text-secondary); }
+select, input[type=range] {
+  width: 100%;
+  font-size: 13px;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  appearance: auto;
+}
+input[type=range] { padding: 0; height: 20px; background: transparent; border: none; cursor: pointer; }
+
+.slider-row { display: flex; align-items: center; gap: 10px; }
+.slider-row input { flex: 1; }
+.slider-val { font-size: 13px; font-weight: 500; min-width: 72px; text-align: right; color: var(--text-primary); }
+.range-band { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+
+.toggle-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+.toggle-btn {
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle-btn:hover { background: var(--bg-secondary); }
+.toggle-btn.amp.active { background: var(--accent-red-light); color: var(--accent-red); border-color: var(--accent-red); font-weight: 500; }
+.toggle-btn.mit.active { background: var(--accent-teal-light); color: var(--accent-teal); border-color: var(--accent-teal); font-weight: 500; }
+
+.factor-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; padding: 6px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.factor-row:last-child { border-bottom: none; }
+.factor-name { color: var(--text-secondary); }
+.factor-val { font-weight: 500; }
+.factor-val.pos { color: var(--accent-red); }
+.factor-val.neg { color: var(--accent-teal); }
+
+.bar-wrap { display: flex; flex-direction: column; gap: 7px; }
+.bar-item { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.bar-item .bl { width: 110px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.bar-item .bt { flex: 1; height: 7px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+.bar-item .bf { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.bar-item .bn { font-size: 11px; color: var(--text-secondary); min-width: 46px; text-align: right; }
+
+.badge { display: inline-flex; align-items: center; font-size: 13px; font-weight: 500; padding: 4px 12px; border-radius: var(--radius-sm); }
+.badge-low  { background: var(--accent-green-light); color: var(--accent-green); }
+.badge-mid  { background: var(--accent-amber-light); color: var(--accent-amber); }
+.badge-high { background: var(--accent-red-light); color: var(--accent-red); }
+
+.lifecycle-bar { position: relative; height: 28px; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
+.lc-seg { position: absolute; top:0; height:100%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:500; }
+.lc-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); }
+
+.source-note { font-size: 10px; color: var(--text-secondary); margin-top: 1.5rem; padding-top: 1rem; border-top: 0.5px solid var(--border); }
+
+@media (max-width: 900px) {
+  .row-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .row-2, .row-3, .row-bot { grid-template-columns: 1fr; }
+  .page { padding: 1rem; }
+  header { padding: 1rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cuadro de mando — Impacto económico de ciberincidentes</h1>
+  <span>Basado en IBM Cost of a Data Breach Report 2025 (Ponemon Institute) · Modelo log-log ISACA/Advisen</span>
+</header>
+
+<div class="page">
+
+  <div class="row row-4" id="kpi-row">
+    <div class="metric">
+      <div class="lbl">Coste predicho</div>
+      <div class="val" id="kpi-cost">—</div>
+      <div class="delta" id="kpi-vs"></div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Coste por registro</div>
+      <div class="val" id="kpi-cpr">—</div>
+      <div class="delta" id="kpi-records"></div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Ciclo de vida estimado</div>
+      <div class="val" id="kpi-days">—</div>
+      <div class="delta" id="kpi-days-vs"></div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Nivel de riesgo</div>
+      <div class="val" id="kpi-badge" style="margin-top:4px;font-size:14px;"></div>
+      <div class="delta" id="kpi-pct"></div>
+    </div>
+  </div>
+
+  <div class="row row-2">
+    <div class="card">
+      <div class="card-title">Configuración del incidente</div>
+      <div class="ctrl">
+        <label>Sector</label>
+        <select id="sel-sector">
+          <option value="7420000">Healthcare — $7,42M</option>
+          <option value="5560000">Financial — $5,56M</option>
+          <option value="5000000">Industrial — $5,00M</option>
+          <option value="4830000">Energy — $4,83M</option>
+          <option value="4790000">Technology — $4,79M</option>
+          <option value="4610000">Pharma — $4,61M</option>
+          <option value="4550000">Professional services — $4,55M</option>
+          <option value="4440000" selected>Global average — $4,44M</option>
+          <option value="3900000">Education — $3,90M</option>
+          <option value="3500000">Retail — $3,50M</option>
+          <option value="2580000">Public sector — $2,58M</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>Vector de ataque inicial</label>
+        <select id="sel-vector">
+          <option value="5080000|258">Ransomware — $5,08M</option>
+          <option value="4920000|260">Malicious insider — $4,92M</option>
+          <option value="4910000|267">Supply chain — $4,91M</option>
+          <option value="4800000|252" selected>Phishing — $4,80M</option>
+          <option value="4800000|260">Business email compromise — $4,80M</option>
+          <option value="4700000|275">Stolen credentials — $4,70M</option>
+          <option value="4200000|238">Vulnerability exploit — $4,20M</option>
+          <option value="3900000|226">Cloud misconfiguration — $3,90M</option>
+          <option value="3850000|200">DDoS — $3,85M</option>
+          <option value="3700000|205">Human error — $3,70M</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>País / región</label>
+        <select id="sel-country">
+          <option value="10220000">EE.UU. — $10,22M</option>
+          <option value="6250000">Benelux — $6,25M</option>
+          <option value="5500000">Canadá — $5,50M</option>
+          <option value="4500000">Italia — $4,50M</option>
+          <option value="4360000">Reino Unido — $4,36M</option>
+          <option value="4440000" selected>Global — $4,44M</option>
+          <option value="4100000">Japón — $4,10M</option>
+          <option value="4080000">Francia — $4,08M</option>
+          <option value="4050000">España — $4,05M</option>
+          <option value="4030000">Alemania — $4,03M</option>
+          <option value="3420000">ASEAN — $3,42M</option>
+          <option value="2770000">Australia — $2,77M</option>
+          <option value="2440000">India — $2,44M</option>
+          <option value="1440000">Brasil — $1,44M</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>Tipo de dato comprometido</label>
+        <select id="sel-dtype">
+          <option value="178">Propiedad intelectual — $178/registro</option>
+          <option value="170">Datos médicos — $170/registro</option>
+          <option value="165">Datos de pago — $165/registro</option>
+          <option value="160">Credenciales — $160/registro</option>
+          <option value="155" selected>PII personal — $155/registro</option>
+          <option value="140">Datos internos — $140/registro</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>Registros comprometidos</label>
+        <div class="slider-row">
+          <input type="range" id="sl-records" min="0" max="8" step="1" value="3">
+          <span class="slider-val" id="sl-records-out">50.000</span>
+        </div>
+        <div class="range-band"><span>100</span><span>1K</span><span>10K</span><span>50K</span><span>100K</span><span>500K</span><span>1M</span><span>5M</span><span>50M</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Factores modificadores</div>
+      <div class="ctrl">
+        <label>Tiempo de detección + contención (días)</label>
+        <div class="slider-row">
+          <input type="range" id="sl-days" min="30" max="500" step="5" value="241">
+          <span class="slider-val" id="sl-days-out">241 d</span>
+        </div>
+        <div class="range-band"><span>30d</span><span style="margin-left:auto">500d</span></div>
+      </div>
+
+      <div class="card-title" style="margin-top:1rem;">Amplificadores (rojo) · Mitigadores (verde)</div>
+      <div class="toggle-row">
+        <button class="toggle-btn amp" data-delta="670000" data-dir="amp">Shadow AI</button>
+        <button class="toggle-btn amp" data-delta="224000" data-dir="amp">IoT / OT</button>
+        <button class="toggle-btn amp" data-delta="218000" data-dir="amp">Falta personal</button>
+        <button class="toggle-btn amp" data-delta="231000" data-dir="amp">Sistemas complejos</button>
+        <button class="toggle-btn mit" data-delta="1900000" data-dir="mit">AI en defensa</button>
+        <button class="toggle-btn mit" data-delta="248000" data-dir="mit">Plan IR + test</button>
+        <button class="toggle-btn mit" data-delta="258000" data-dir="mit">Formación empleados</button>
+        <button class="toggle-btn mit" data-delta="222000" data-dir="mit">Cifrado aplicado</button>
+      </div>
+
+      <hr class="sep">
+      <div class="card-title">Desglose de factores activos</div>
+      <div id="factor-list"></div>
+    </div>
+  </div>
+
+  <div class="row row-3">
+    <div class="card">
+      <div class="card-title">Bandas de coste predicho por número de registros</div>
+      <div style="position:relative;width:100%;height:240px;">
+        <canvas id="chart-bands" role="img" aria-label="Bandas de coste estimado por registros comprometidos"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Coste por sector — IBM 2025</div>
+      <div class="bar-wrap" id="sector-bars"></div>
+    </div>
+  </div>
+
+  <div class="row row-bot">
+    <div class="card">
+      <div class="card-title">Ciclo de vida del incidente</div>
+      <div class="lifecycle-bar" id="lc-bar"></div>
+      <div class="lc-label" id="lc-label"></div>
+      <hr class="sep">
+      <div class="card-title">Coste estimado por fase</div>
+      <div style="position:relative;width:100%;height:180px;">
+        <canvas id="chart-phases" role="img" aria-label="Coste estimado por fase del incidente"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Benchmark — coste medio por vector de ataque</div>
+      <div style="position:relative;width:100%;height:300px;">
+        <canvas id="chart-vectors" role="img" aria-label="Coste medio por vector de ataque IBM 2025"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="source-note">
+    Fuentes: IBM Cost of a Data Breach Report 2025 (Ponemon Institute, 600 organizaciones, 17 sectores, 16 países) ·
+    Modelo de coste: regresión log-log ISACA 2023 sobre datos Advisen (β=0,76) ·
+    Para uso orientativo; no sustituye análisis actuarial individualizado.
+  </div>
+
+</div>
+
+<script>
+const GLOBAL_AVG = 4440000, GLOBAL_DAYS = 241;
+const RECORD_BUCKETS = [100,1000,10000,50000,100000,500000,1000000,5000000,50000000];
+const RECORD_LABELS  = ['100','1K','10K','50K','100K','500K','1M','5M','50M'];
+const BETA = 0.76, MEDIAN_RECORDS = 50000;
+
+const SECTOR_DATA = [
+  {label:'Healthcare',val:7420000},{label:'Financial',val:5560000},
+  {label:'Industrial',val:5000000},{label:'Energy',val:4830000},
+  {label:'Technology',val:4790000},{label:'Pharma',val:4610000},
+  {label:'Prof. services',val:4550000},{label:'Global avg.',val:4440000},
+  {label:'Education',val:3900000},{label:'Retail',val:3500000},
+  {label:'Public sector',val:2580000},
+];
+
+const VECTOR_DATA = [
+  {label:'Ransomware',val:5080000},{label:'Malicious insider',val:4920000},
+  {label:'Supply chain',val:4910000},{label:'Phishing',val:4800000},
+  {label:'BEC',val:4800000},{label:'Stolen creds',val:4700000},
+  {label:'Vuln. exploit',val:4200000},{label:'Cloud misconfig',val:3900000},
+  {label:'DDoS',val:3850000},{label:'Human error',val:3700000},
+];
+
+function fmt(n){
+  if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B';
+  if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return '$'+Math.round(n/1000)+'K';
+  return '$'+Math.round(n);
+}
+function fmtS(n){
+  if(n>=1e6) return '$'+(n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return '$'+Math.round(n/1000)+'K';
+  return '$'+Math.round(n);
+}
+
+function predictCost(sc,vc,cc,cpr,rec,days,mods){
+  const w = 0.40*sc + 0.40*vc + 0.20*cc;
+  const rScale = Math.pow(Math.max(rec,1)/MEDIAN_RECORDS, BETA);
+  const dAdj = cpr/155;
+  const dFactor = 1+Math.max(0,(days-GLOBAL_DAYS)/GLOBAL_DAYS)*0.18;
+  let base = w*rScale*dAdj*dFactor;
+  mods.forEach(m=>{ base += m.dir==='amp' ? m.delta : -m.delta; });
+  return Math.max(10000,Math.min(1e9,base));
+}
+
+function getState(){
+  const sc = parseFloat(document.getElementById('sel-sector').value);
+  const vp = document.getElementById('sel-vector').value.split('|');
+  const vc = parseFloat(vp[0]), vd = parseInt(vp[1]);
+  const cc = parseFloat(document.getElementById('sel-country').value);
+  const cpr= parseFloat(document.getElementById('sel-dtype').value);
+  const ri = parseInt(document.getElementById('sl-records').value);
+  const rec= RECORD_BUCKETS[ri];
+  const days=parseInt(document.getElementById('sl-days').value);
+  const mods=[];
+  document.querySelectorAll('.toggle-btn.active').forEach(b=>{
+    mods.push({label:b.textContent.trim(),delta:parseFloat(b.dataset.delta),dir:b.dataset.dir});
+  });
+  return {sc,vc,vd,cc,cpr,rec,ri,days,mods};
+}
+
+let cBands=null,cPhases=null,cVectors=null;
+
+function updateAll(){
+  const s=getState();
+  const cost=predictCost(s.sc,s.vc,s.cc,s.cpr,s.rec,s.days,s.mods);
+  const cprEff=s.rec>0?cost/s.rec:s.cpr;
+  const vs=((cost-GLOBAL_AVG)/GLOBAL_AVG*100);
+
+  document.getElementById('kpi-cost').textContent=fmt(cost);
+  const vsEl=document.getElementById('kpi-vs');
+  vsEl.textContent=(vs>=0?'+':'')+vs.toFixed(0)+'% vs media global ('+fmtS(GLOBAL_AVG)+')';
+  vsEl.className='delta '+(vs>=0?'up':'dn');
+
+  document.getElementById('kpi-cpr').textContent='$'+Math.round(cprEff).toLocaleString('es-ES');
+  document.getElementById('kpi-records').textContent=s.rec.toLocaleString('es-ES')+' registros';
+
+  document.getElementById('kpi-days').textContent=s.days+' días';
+  const dvEl=document.getElementById('kpi-days-vs');
+  const dv=s.days-GLOBAL_DAYS;
+  dvEl.textContent=(dv>=0?'+':'')+dv+'d vs media ('+GLOBAL_DAYS+'d)';
+  dvEl.className='delta '+(dv>=0?'up':'dn');
+
+  const pct=cost/GLOBAL_AVG;
+  let badge,bc;
+  if(pct<0.85){badge='Bajo';bc='badge-low';}
+  else if(pct<1.4){badge='Moderado';bc='badge-mid';}
+  else{badge='Crítico';bc='badge-high';}
+  document.getElementById('kpi-badge').innerHTML='<span class="badge '+bc+'">'+badge+'</span>';
+  document.getElementById('kpi-pct').textContent=pct.toFixed(2)+'x la media global';
+
+  const fl=document.getElementById('factor-list');
+  if(s.mods.length===0){
+    fl.innerHTML='<div style="font-size:12px;color:var(--text-secondary);padding:8px 0">Sin factores activos</div>';
+  } else {
+    const total=s.mods.reduce((a,m)=>a+(m.dir==='amp'?m.delta:-m.delta),0);
+    fl.innerHTML=s.mods.map(m=>{
+      const sign=m.dir==='amp'?'+':'-';
+      const cls=m.dir==='amp'?'pos':'neg';
+      return '<div class="factor-row"><span class="factor-name">'+m.label+'</span><span class="factor-val '+cls+'">'+sign+fmtS(m.delta)+'</span></div>';
+    }).join('')+
+    '<div class="factor-row" style="font-weight:500"><span class="factor-name">Impacto neto</span><span class="factor-val '+(total>=0?'pos':'neg')+'">'+(total>=0?'+':'')+fmtS(total)+'</span></div>';
+  }
+
+  updateSectorBars(s.sc);
+  updateLifecycle(s.days);
+  updateBands(s);
+  updatePhases(cost);
+  updateVectors(cost);
+}
+
+function updateSectorBars(activeCost){
+  const max=7420000;
+  document.getElementById('sector-bars').innerHTML=SECTOR_DATA.map(d=>{
+    const pct=Math.round(d.val/max*100);
+    const active=d.val===activeCost;
+    return '<div class="bar-item"><span class="bl" style="'+(active?'color:var(--text-primary);font-weight:500':'')+'">'+d.label+'</span>'+
+      '<div class="bt"><div class="bf" style="width:'+pct+'%;background:'+(active?'var(--accent-blue)':'var(--text-secondary)')+'"></div></div>'+
+      '<span class="bn">'+fmtS(d.val)+'</span></div>';
+  }).join('');
+}
+
+function updateLifecycle(totalDays){
+  const detect=Math.round(totalDays*0.56);
+  const contain=totalDays-detect;
+  const pp=Math.round(detect/totalDays*100);
+  document.getElementById('lc-bar').innerHTML=
+    '<div class="lc-seg" style="left:0;width:'+pp+'%;background:#5DCAA5;color:#085041">Detección</div>'+
+    '<div class="lc-seg" style="left:'+pp+'%;width:'+(100-pp)+'%;background:#FAC775;color:#633806">Contención</div>';
+  document.getElementById('lc-label').innerHTML=
+    '<span>'+detect+'d detección</span><span>'+contain+'d contención</span><span>Total: '+totalDays+'d</span>';
+}
+
+function updateBands(s){
+  const base=[],low=[],high=[];
+  RECORD_BUCKETS.forEach(r=>{
+    const c=predictCost(s.sc,s.vc,s.cc,s.cpr,r,s.days,s.mods);
+    base.push(+(c/1e6).toFixed(3));
+    low.push(+(c*0.70/1e6).toFixed(3));
+    high.push(+(c*1.50/1e6).toFixed(3));
+  });
+  if(cBands){cBands.destroy();cBands=null;}
+  cBands=new Chart(document.getElementById('chart-bands'),{
+    type:'line',
+    data:{labels:RECORD_LABELS,datasets:[
+      {label:'Banda alta',data:high,borderColor:'#F09595',backgroundColor:'rgba(240,149,149,0.10)',fill:'+1',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3]},
+      {label:'Central',data:base,borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,0.08)',fill:false,tension:0.4,
+        pointRadius:(ctx)=>ctx.dataIndex===s.ri?6:0,pointBackgroundColor:'#378ADD',borderWidth:2},
+      {label:'Banda baja',data:low,borderColor:'#97C459',backgroundColor:'rgba(151,196,89,0.10)',fill:'-1',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3]},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{
+        x:{grid:{color:'rgba(136,135,128,0.12)'},ticks:{font:{size:11}}},
+        y:{grid:{color:'rgba(136,135,128,0.12)'},ticks:{callback:v=>'$'+v+'M',font:{size:11}}}
+      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+ctx.parsed.y.toFixed(2)+'M'}}}
+    }
+  });
+}
+
+function updatePhases(totalCost){
+  const phases=['Detección\ny escalado','Pérdida\nnegocio','Respuesta\npost-brecha','Notificación'];
+  const shares=[0.331,0.311,0.270,0.088];
+  const vals=shares.map(sh=>Math.round(totalCost*sh/1e3));
+  if(cPhases){cPhases.destroy();cPhases=null;}
+  cPhases=new Chart(document.getElementById('chart-phases'),{
+    type:'bar',
+    data:{labels:phases,datasets:[{data:vals,backgroundColor:['#378ADD','#EF9F27','#5DCAA5','#B4B2A9'],borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10}}},
+        y:{grid:{color:'rgba(136,135,128,0.12)'},ticks:{callback:v=>'$'+v+'K',font:{size:10}}}
+      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' $'+ctx.parsed.y.toLocaleString()+'K'}}}
+    }
+  });
+}
+
+function updateVectors(currentCost){
+  const sorted=[...VECTOR_DATA].sort((a,b)=>b.val-a.val);
+  if(cVectors){cVectors.destroy();cVectors=null;}
+  cVectors=new Chart(document.getElementById('chart-vectors'),{
+    type:'bar',
+    data:{labels:sorted.map(d=>d.label),datasets:[{
+      data:sorted.map(d=>Math.round(d.val/1e3)),
+      backgroundColor:sorted.map(d=>Math.abs(d.val-currentCost)<80000?'#378ADD':'#B4B2A9'),
+      borderRadius:3,borderSkipped:false
+    }]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      scales:{
+        x:{grid:{color:'rgba(136,135,128,0.12)'},ticks:{callback:v=>'$'+v+'K',font:{size:10}},min:3000},
+        y:{grid:{display:false},ticks:{font:{size:11}}}
+      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' $'+(ctx.parsed.x/1000).toFixed(2)+'M'}}}
+    }
+  });
+}
+
+document.querySelectorAll('.toggle-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{btn.classList.toggle('active');updateAll();});
+});
+document.getElementById('sl-records').addEventListener('input',e=>{
+  document.getElementById('sl-records-out').textContent=RECORD_BUCKETS[parseInt(e.target.value)].toLocaleString('es-ES');
+  updateAll();
+});
+document.getElementById('sl-days').addEventListener('input',e=>{
+  document.getElementById('sl-days-out').textContent=e.target.value+' d';
+  updateAll();
+});
+['sel-sector','sel-vector','sel-country','sel-dtype'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',updateAll);
+});
+
+updateAll();
+</script>
+</body>
+</html>
