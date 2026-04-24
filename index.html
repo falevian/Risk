@@ -161,9 +161,18 @@ input[type=range] { padding: 0; height: 20px; background: transparent; border: n
 .bar-item .bn { font-size: 11px; color: var(--text-secondary); min-width: 46px; text-align: right; }
 
 .badge { display: inline-flex; align-items: center; font-size: 13px; font-weight: 500; padding: 4px 12px; border-radius: var(--radius-sm); }
-.badge-low  { background: var(--accent-green-light); color: var(--accent-green); }
-.badge-mid  { background: var(--accent-amber-light); color: var(--accent-amber); }
-.badge-high { background: var(--accent-red-light); color: var(--accent-red); }
+.badge-vlow  { background: #eaf3de; color: #3b6d11; }
+.badge-low   { background: #e1f5ee; color: #0f6e56; }
+.badge-med   { background: #faeeda; color: #854f0b; }
+.badge-high  { background: #fcebeb; color: #a32d2d; }
+.badge-vhigh { background: #501313; color: #f09595; }
+@media (prefers-color-scheme: dark) {
+  .badge-vlow  { background: #173404; color: #97c459; }
+  .badge-low   { background: #04342c; color: #5dcaa5; }
+  .badge-med   { background: #412402; color: #ef9f27; }
+  .badge-high  { background: #501313; color: #f09595; }
+  .badge-vhigh { background: #4a1b0c; color: #f0997b; }
+}
 
 .lifecycle-bar { position: relative; height: 28px; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
 .lc-seg { position: absolute; top:0; height:100%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:500; }
@@ -205,7 +214,7 @@ input[type=range] { padding: 0; height: 20px; background: transparent; border: n
       <div class="delta" id="kpi-days-vs"></div>
     </div>
     <div class="metric">
-      <div class="lbl">Nivel de riesgo</div>
+      <div class="lbl">Posible impacto</div>
       <div class="val" id="kpi-badge" style="margin-top:4px;font-size:14px;"></div>
       <div class="delta" id="kpi-pct"></div>
     </div>
@@ -439,9 +448,11 @@ function updateAll(){
 
   const pct=cost/GLOBAL_AVG;
   let badge,bc;
-  if(pct<0.85){badge='Bajo';bc='badge-low';}
-  else if(pct<1.4){badge='Moderado';bc='badge-mid';}
-  else{badge='Crítico';bc='badge-high';}
+  if     (pct<0.60){badge='Very Low'; bc='badge-vlow';}
+  else if(pct<0.90){badge='Low';      bc='badge-low';}
+  else if(pct<1.30){badge='Medium';   bc='badge-med';}
+  else if(pct<1.80){badge='High';     bc='badge-high';}
+  else             {badge='Very High';bc='badge-vhigh';}
   document.getElementById('kpi-badge').innerHTML='<span class="badge '+bc+'">'+badge+'</span>';
   document.getElementById('kpi-pct').textContent=pct.toFixed(2)+'x la media global';
 
