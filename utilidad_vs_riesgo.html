@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riesgo vs. Utilidad — Curso Privacidad UC3M</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0b0e14;
+    --surface:   #131720;
+    --border:    #1f2633;
+    --text:      #e2e8f4;
+    --muted:     #6b7a99;
+    --accent1:   #4fffb0;   /* verde-cyan → utilidad */
+    --accent2:   #ff4f82;   /* rosa       → riesgo   */
+    --accent3:   #ffb84f;   /* ámbar      → DP       */
+    --accent4:   #4fb8ff;   /* azul       → corr     */
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 0 0 60px;
+  }
+
+  /* ── header ── */
+  header {
+    padding: 42px 48px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .header-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .18em;
+    color: var(--accent1);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(20px, 3vw, 30px);
+    font-weight: 700;
+    line-height: 1.1;
+    color: #fff;
+  }
+  .header-meta {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 8px;
+  }
+  .header-meta span { color: var(--accent1); }
+
+  /* ── tab nav ── */
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 20px 48px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .06em;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent1); border-bottom-color: var(--accent1); }
+
+  /* ── panels ── */
+  .panel { display: none; padding: 40px 48px; }
+  .panel.active { display: block; }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: .12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .panel-heading {
+    font-size: 22px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .panel-desc {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 680px;
+    margin-bottom: 36px;
+  }
+  .panel-desc strong { color: var(--text); }
+
+  /* ── chart containers ── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 28px;
+  }
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px 28px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent1), transparent);
+  }
+  .chart-box.red::before  { background: linear-gradient(90deg, var(--accent2), transparent); }
+  .chart-box.amber::before{ background: linear-gradient(90deg, var(--accent3), transparent); }
+  .chart-box.blue::before { background: linear-gradient(90deg, var(--accent4), transparent); }
+
+  .chart-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .chart-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  svg { overflow: visible; }
+
+  /* axes */
+  .axis text { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+  .axis path, .axis line { stroke: var(--border); }
+  .grid line { stroke: var(--border); stroke-dasharray: 3,4; }
+  .grid path { stroke: none; }
+
+  /* legend */
+  .legend { display: flex; gap: 20px; margin-top: 14px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-line { width: 22px; height: 2px; }
+
+  /* callout box */
+  .callout {
+    background: #101520;
+    border-left: 3px solid var(--accent1);
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin-top: 28px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 760px;
+  }
+  .callout.red   { border-left-color: var(--accent2); }
+  .callout.amber { border-left-color: var(--accent3); }
+  .callout.blue  { border-left-color: var(--accent4); }
+  .callout strong { color: var(--text); }
+  .callout code {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: #1a2030;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--accent1);
+  }
+
+  /* tooltip */
+  .tooltip {
+    position: fixed;
+    background: #1a2235;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+    z-index: 999;
+    line-height: 1.8;
+  }
+  .tooltip.visible { opacity: 1; }
+
+  /* stat pills */
+  .stat-row { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  .stat-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 18px;
+    min-width: 140px;
+  }
+  .stat-pill-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
+  .stat-pill-value { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent1); }
+  .stat-pill-value.red { color: var(--accent2); }
+  .stat-pill-value.amber { color: var(--accent3); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-label">UC3M · Privacidad, Anonimidad y Riesgos Ciber</div>
+    <h1>Riesgo vs. Utilidad<br>en Anonimización</h1>
+    <div class="header-meta">Dataset sintético — <span>n = 5.000</span> registros · Datos reales del ejercicio</div>
+  </div>
+</header>
+
+<nav>
+  <div class="tab active" data-panel="kanon">k-Anonimidad</div>
+  <div class="tab" data-panel="dp">Privacidad Diferencial</div>
+  <div class="tab" data-panel="ruido">Ruido Gaussiano</div>
+  <div class="tab" data-panel="pram">PRAM</div>
+  <div class="tab" data-panel="cp">Generalización CP</div>
+  <div class="tab" data-panel="composicion">Composición DP</div>
+</nav>
+
+<div class="tooltip" id="tooltip"></div>
+
+<!-- ══════════════════════════════════════════════════════ PANEL 1 k-Anon -->
+<div class="panel active" id="panel-kanon">
+  <div class="panel-title">Técnica no perturbativa</div>
+  <div class="panel-heading">k-Anonimidad: coste en registros vs. ganancia en privacidad</div>
+  <div class="panel-desc">
+    QID: <strong>edad (intervalos de 10 años) + sexo + código postal (3 dígitos)</strong>.
+    Al exigir grupos de equivalencia más grandes, el porcentaje de registros que hay que suprimir
+    crece de forma no lineal — y el riesgo medio baja, pero la utilidad colapsa antes de k=15.
+  </div>
+  <div class="stat-row">
+    <div class="stat-pill"><div class="stat-pill-label">sin protección</div><div class="stat-pill-value red">99,9%</div><div class="stat-pill-label">únicos (k=1)</div></div>
+    <div class="stat-pill"><div class="stat-pill-label">k = 5</div><div class="stat-pill-value red">84,5%</div><div class="stat-pill-label">suprimidos</div></div>
+    <div class="stat-pill"><div class="stat-pill-label">k = 10</div><div class="stat-pill-value red">98,6%</div><div class="stat-pill-label">suprimidos</div></div>
+    <div class="stat-pill"><div class="stat-pill-label">k = 15</div><div class="stat-pill-value amber">100%</div><div class="stat-pill-label">dataset vacío</div></div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-box red">
+      <div class="chart-title">Registros suprimidos (%) vs. k objetivo</div>
+      <div class="chart-sub">Con QID granulares (CP a 5 dígitos → 3), casi todo el dataset debe eliminarse para alcanzar k≥5</div>
+      <svg id="chart-kanon-sup" width="100%" height="260"></svg>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Utilidad remanente (%) vs. Riesgo medio (1/fk)</div>
+      <div class="chart-sub">Cada punto es un valor de k. El eje X es utilidad, el Y es riesgo — curva de Pareto empírica</div>
+      <svg id="chart-kanon-pareto" width="100%" height="260"></svg>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>k = 2</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>k = 5</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent1)"></div>k = 10</div>
+      </div>
+    </div>
+  </div>
+  <div class="callout red">
+    <strong>Conclusión del dato real:</strong> con QIDs granulares como el CP completo, alcanzar k=5 exige suprimir el <strong>84,5%</strong> de los registros y k=15 vacía el dataset por completo.
+    Esto ilustra por qué la k-anonimidad requiere generalización previa (CP 5→3 dígitos, edad en intervalos) antes de la supresión local — y por qué el parámetro k no es gratis.
+    El punto de inflexión está en <code>k≈3</code>: ahí empieza la caída dramática de utilidad.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PANEL 2 DP -->
+<div class="panel" id="panel-dp">
+  <div class="panel-title">Privacidad diferencial</div>
+  <div class="panel-heading">Mecanismo de Laplace: error relativo vs. ε</div>
+  <div class="panel-desc">
+    Consulta: <strong>salario medio</strong>. Sensibilidad global Δf = (max−min)/n ≈ 71 €.
+    El eje X es ε en escala logarítmica. El eje Y es el error relativo medio (%):
+    cuánto se desvía la respuesta con ruido respecto al valor real.
+  </div>
+  <div class="chart-grid">
+    <div class="chart-box amber" style="grid-column: 1 / -1; max-width: 760px;">
+      <div class="chart-title">Error relativo (%) vs. ε — Mecanismo de Laplace · escala log</div>
+      <div class="chart-sub">Consulta: salario medio. A la izquierda: privacidad fuerte, datos inútiles. A la derecha: datos útiles, privacidad débil.</div>
+      <svg id="chart-dp" width="100%" height="300"></svg>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-line" style="background:var(--accent3)"></div>Error relativo (%)</div>
+        <div class="legend-item" style="margin-left:12px">
+          <div style="width:1px;height:14px;background:var(--accent2);opacity:.7;margin-right:7px"></div>
+          Zona "sin garantía práctica" (ε > 1)
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="callout amber">
+    <strong>Lectura clave:</strong> con <code>ε = 0.1</code> el error supera el <strong>2%</strong> — para una media de 23.000 € eso son ±460 € de ruido esperado.
+    Con <code>ε = 1</code> baja al 0,2% (±46 €), que puede ser aceptable para estadística agregada.
+    El debate real en producción (Apple, Google RAPPOR, Censo 2020) es que los valores empleados suelen ser <code>ε ≥ 6</code> — lo que hace la garantía teórica casi irrelevante.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PANEL 3 Ruido -->
+<div class="panel" id="panel-ruido">
+  <div class="panel-title">Método perturbativo</div>
+  <div class="panel-heading">Ruido gaussiano: IL1 y correlación vs. nivel de perturbación</div>
+  <div class="panel-desc">
+    Variable: <strong>salario_anual_euros</strong>. El parámetro <em>nivel</em> es σ / std(serie).
+    Se muestra cómo IL1 (error normalizado) sube y la correlación cae al aumentar el ruido.
+  </div>
+  <div class="chart-grid">
+    <div class="chart-box blue">
+      <div class="chart-title">IL1 normalizado vs. nivel de ruido (σ / std)</div>
+      <div class="chart-sub">Un nivel de 0.10 apenas introduce error — pero tampoco protege mucho frente a ataques sobre QIDs</div>
+      <svg id="chart-ruido-il1" width="100%" height="260"></svg>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Correlación con original vs. nivel de ruido</div>
+      <div class="chart-sub">Con nivel=0.4, la correlación cae a 0.93 — empieza a perder utilidad analítica real</div>
+      <svg id="chart-ruido-corr" width="100%" height="260"></svg>
+    </div>
+  </div>
+  <div class="callout blue">
+    <strong>Lo que no muestra la gráfica:</strong> añadir ruido gaussiano a variables numéricas <em>no reduce el riesgo de re-identificación</em> sobre los cuasi-identificadores (edad, sexo, CP).
+    Un atacante que conozca el CP de su objetivo puede re-identificarle igualmente aunque el salario esté perturbado.
+    El ruido sólo protege frente a <strong>ataques de inferencia</strong> sobre la variable ruidosa en sí.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PANEL 4 PRAM -->
+<div class="panel" id="panel-pram">
+  <div class="panel-title">Método perturbativo categórico</div>
+  <div class="panel-heading">PRAM: distorsión marginal vs. probabilidad diagonal</div>
+  <div class="panel-desc">
+    Variable: <strong>estado_civil</strong> (5 categorías). <code>p_diag</code> es la probabilidad de que el valor no cambie.
+    TV = distancia de variación total entre la distribución original y la perturbada (0 = idéntica).
+  </div>
+  <div class="chart-grid">
+    <div class="chart-box" style="grid-column: 1 / -1; max-width: 760px;">
+      <div class="chart-title">Distancia TV (distorsión) y % registros modificados vs. p_diagonal</div>
+      <div class="chart-sub">El punto de equilibrio práctico es p_diag ≈ 0.85: protección razonable con escasa distorsión marginal</div>
+      <svg id="chart-pram" width="100%" height="280"></svg>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-line" style="background:var(--accent1)"></div>Distancia TV (distorsión marginal)</div>
+        <div class="legend-item"><div class="legend-line" style="background:var(--accent3)"></div>% registros modificados</div>
+      </div>
+    </div>
+  </div>
+  <div class="callout">
+    <strong>Invarianza PRAM:</strong> la propiedad teórica clave es que con la matriz de transición correcta,
+    la distribución marginal <em>esperada</em> se preserva. En la práctica, con n=5.000 registros,
+    hay algo de ruido muestral — visible en los deltas de la tabla del script.
+    A <code>p_diag=0.85</code>: 15% de registros cambian, TV ≈ 0.08.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PANEL 5 CP -->
+<div class="panel" id="panel-cp">
+  <div class="panel-title">Generalización jerárquica</div>
+  <div class="panel-heading">Código postal: unicidad vs. nivel de generalización</div>
+  <div class="panel-desc">
+    Se trunca el CP a distinto número de dígitos: 5 (completo), 4, 3, 2.
+    QID adicional: edad en intervalos de 10 años + sexo.
+    La gráfica muestra el % de registros únicos (k=1) según la precisión del CP.
+  </div>
+  <div class="chart-grid">
+    <div class="chart-box" style="grid-column: 1 / -1; max-width: 680px;">
+      <div class="chart-title">% Registros únicos (k=1) según dígitos del CP mantenidos</div>
+      <div class="chart-sub">CP completo → 99.9% únicos. CP a 2 dígitos → 39%. La generalización tiene rendimientos decrecientes.</div>
+      <svg id="chart-cp" width="100%" height="280"></svg>
+    </div>
+  </div>
+  <div class="callout">
+    <strong>Lección Latanya Sweeney (1997):</strong> sexo + fecha de nacimiento + código postal identifica al 87% de la población de EE.UU.
+    Este dataset reproduce el mismo patrón: incluso truncando a 3 dígitos, el 84,8% de registros siguen siendo únicos
+    porque la edad sigue siendo precisa. Hay que generalizar <em>todos</em> los QIDs simultáneamente.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PANEL 6 Composición -->
+<div class="panel" id="panel-composicion">
+  <div class="panel-title">Privacidad diferencial avanzada</div>
+  <div class="panel-heading">Composición de mecanismos: básica vs. avanzada (√k)</div>
+  <div class="panel-desc">
+    Con <code>ε₀ = 0.1</code> por consulta. La composición básica acumula ε linealmente (k·ε).
+    La composición avanzada (Dwork-Rothblum-Vadhan 2010) crece como √k — mucho mejor para muchas consultas.
+  </div>
+  <div class="chart-grid">
+    <div class="chart-box amber" style="grid-column: 1 / -1; max-width: 760px;">
+      <div class="chart-title">ε total acumulado vs. número de consultas k (escala log-log)</div>
+      <div class="chart-sub">Con 100 consultas: básica ε=10 (inutilizable) vs. avanzada ε=4.8 (todavía razonable)</div>
+      <svg id="chart-comp" width="100%" height="300"></svg>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-line" style="background:var(--accent2)"></div>Composición básica (k·ε)</div>
+        <div class="legend-item"><div class="legend-line" style="background:var(--accent1)"></div>Composición avanzada (√(2k·ln(1/δ))·ε)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--muted)"></div>δ = 10⁻⁵, ε₀ = 0.1</div>
+      </div>
+    </div>
+  </div>
+  <div class="callout amber">
+    <strong>Por qué importa en producción:</strong> una API de análisis que recibe 1.000 consultas al día con <code>ε=0.1</code> cada una
+    acumula <code>ε_total = 100</code> con la composición básica (sin garantía práctica).
+    Con Rényi DP / moments accountant — el estándar en DP-SGD y sistemas reales —
+    la acumulación es sub-lineal. Eso es lo que usan Apple y Google RAPPOR,
+    y lo que exige el <code>Art. 10.5(b) del AI Act</code> al hablar de "medidas punteras".
+  </div>
+</div>
+
+<script>
+// ── datos del Python ──────────────────────────────────────────────────────────
+const DATA = {
+  kanon: [
+    {k:2,  pct_sup:40.5,  util:59.5, riesgo:0.3429},
+    {k:3,  pct_sup:64.1,  util:35.9, riesgo:0.2398},
+    {k:5,  pct_sup:84.5,  util:15.5, riesgo:0.1576},
+    {k:7,  pct_sup:92.9,  util:7.1,  riesgo:0.1261},
+    {k:10, pct_sup:98.6,  util:1.4,  riesgo:0.0986},
+    {k:15, pct_sup:100.0, util:0.0,  riesgo:0},
+  ],
+  dp: [
+    {eps:0.01, err:20.017},{eps:0.05, err:4.059},{eps:0.1, err:2.283},
+    {eps:0.3,  err:0.586}, {eps:0.5,  err:0.39}, {eps:1.0, err:0.221},
+    {eps:2.0,  err:0.101}, {eps:5.0,  err:0.04}, {eps:10.0,err:0.021},
+  ],
+  ruido: [
+    {niv:0,   il1:0,      corr:1},    {niv:0.02,il1:0.0015,corr:0.9998},
+    {niv:0.05,il1:0.0038, corr:0.9987},{niv:0.1, il1:0.0075,corr:0.995},
+    {niv:0.2, il1:0.0146, corr:0.9816},{niv:0.4, il1:0.0301,corr:0.9282},
+    {niv:0.7, il1:0.0535, corr:0.8185},{niv:1.0, il1:0.0732,corr:0.7129},
+  ],
+  pram: [
+    {p:0.5, tv:0.2668,pct:50.1},{p:0.6,tv:0.208,pct:39.3},
+    {p:0.7, tv:0.1514,pct:29.1},{p:0.75,tv:0.1264,pct:24.8},
+    {p:0.8, tv:0.1024,pct:20.3},{p:0.85,tv:0.0822,pct:15.0},
+    {p:0.9, tv:0.0506,pct:10.8},{p:0.95,tv:0.0296,pct:4.8},
+    {p:1.0, tv:0.0,   pct:0.0},
+  ],
+  cp: [
+    {prec:5,unicos:99.9},{prec:4,unicos:98.2},
+    {prec:3,unicos:84.8},{prec:2,unicos:39.3},
+  ],
+  comp: [
+    {k:1,bas:0.1,adv:0.48},{k:2,bas:0.2,adv:0.679},{k:5,bas:0.5,adv:1.073},
+    {k:10,bas:1.0,adv:1.517},{k:20,bas:2.0,adv:2.146},{k:50,bas:5.0,adv:3.393},
+    {k:100,bas:10.0,adv:4.799},{k:200,bas:20.0,adv:6.786},
+    {k:500,bas:50.0,adv:10.73},{k:1000,bas:100.0,adv:15.174},
+  ],
+};
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+const C = {
+  g: '#4fffb0', r: '#ff4f82', a: '#ffb84f', b: '#4fb8ff',
+  border:'#1f2633', muted:'#6b7a99', text:'#e2e8f4', bg:'#131720'
+};
+const tip = document.getElementById('tooltip');
+function showTip(html, evt) {
+  tip.innerHTML = html;
+  tip.classList.add('visible');
+  tip.style.left = (evt.clientX + 16) + 'px';
+  tip.style.top  = (evt.clientY - 10) + 'px';
+}
+function hideTip() { tip.classList.remove('visible'); }
+
+function dims(sel) {
+  const el = document.querySelector(sel);
+  return { W: el.clientWidth || 460, H: parseInt(el.getAttribute('height')) };
+}
+const M = { top:14, right:24, bottom:44, left:54 };
+
+function axes(svg, xScale, yScale, xLabel, yLabel, W, H, xFmt, yFmt, xTicks) {
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append('g').attr('transform', `translate(${M.left},${M.top})`);
+
+  // grid
+  g.append('g').attr('class','grid').attr('transform',`translate(0,${iH})`)
+    .call(d3.axisBottom(xScale).tickSize(-iH).tickFormat('').ticks(xTicks||5));
+  g.append('g').attr('class','grid')
+    .call(d3.axisLeft(yScale).tickSize(-iW).tickFormat('').ticks(5));
+
+  // axes
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`)
+    .call(d3.axisBottom(xScale).ticks(xTicks||5).tickFormat(xFmt||d3.format('')));
+  g.append('g').attr('class','axis')
+    .call(d3.axisLeft(yScale).ticks(5).tickFormat(yFmt||d3.format('')));
+
+  // labels
+  g.append('text').attr('fill',C.muted).attr('font-size',10).attr('font-family',"'Space Mono',monospace")
+    .attr('text-anchor','middle').attr('x',iW/2).attr('y',iH+38).text(xLabel);
+  g.append('text').attr('fill',C.muted).attr('font-size',10).attr('font-family',"'Space Mono',monospace")
+    .attr('text-anchor','middle').attr('transform',`rotate(-90)`).attr('x',-iH/2).attr('y',-42).text(yLabel);
+  return g;
+}
+
+// ══════════════════════════════════════ 1. k-ANON supresión ══════════════════
+(function(){
+  const svgEl = document.getElementById('chart-kanon-sup');
+  const W = svgEl.clientWidth || 420, H = 260;
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+  const svg = d3.select(svgEl).attr('viewBox',`0 0 ${W} ${H}`);
+  const d = DATA.kanon;
+
+  const x = d3.scaleBand().domain(d.map(v=>v.k)).range([0,iW]).padding(.28);
+  const y = d3.scaleLinear().domain([0,105]).range([iH,0]);
+  const g = axes(svg, x, y, 'k objetivo', '% registros suprimidos', W, H,
+                 v=>v, v=>v+'%', null);
+  // override x axis to band
+  g.select('.axis:nth-child(3)').remove();
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`)
+    .call(d3.axisBottom(x).tickFormat(v=>'k='+v));
+
+  const colorBar = v => v.pct_sup >= 100 ? C.a : v.pct_sup >= 80 ? C.r : '#c0445c';
+
+  g.selectAll('rect').data(d).enter().append('rect')
+    .attr('x', v=>x(v.k)).attr('y', v=>y(v.pct_sup))
+    .attr('width', x.bandwidth()).attr('height', v=>iH-y(v.pct_sup))
+    .attr('fill', colorBar).attr('rx',3).attr('opacity',.85)
+    .on('mousemove',(e,v)=>showTip(`k = ${v.k}<br>Suprimidos: <b>${v.pct_sup}%</b><br>Restantes: <b>${v.util}%</b>`, e))
+    .on('mouseleave',hideTip);
+
+  // value labels
+  g.selectAll('.vlabel').data(d).enter().append('text')
+    .attr('class','vlabel')
+    .attr('x',v=>x(v.k)+x.bandwidth()/2).attr('y',v=>y(v.pct_sup)-5)
+    .attr('text-anchor','middle').attr('fill',C.text)
+    .attr('font-family',"'Space Mono',monospace").attr('font-size',10)
+    .text(v=>v.pct_sup+'%');
+})();
+
+// ══════════════════════════════════════ 2. k-ANON pareto ══════════════════════
+(function(){
+  const svgEl = document.getElementById('chart-kanon-pareto');
+  const W = svgEl.clientWidth || 420, H = 260;
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+  const svg = d3.select(svgEl).attr('viewBox',`0 0 ${W} ${H}`);
+  const d = DATA.kanon.filter(v=>v.util>0);
+
+  const x = d3.scaleLinear().domain([0,65]).range([0,iW]);
+  const y = d3.scaleLinear().domain([0,.40]).range([iH,0]);
+  const g = axes(svg,x,y,'Utilidad remanente (%)','Riesgo medio (1/fk)',W,H,
+                 v=>v+'%', v=>d3.format('.2f')(v));
+
+  // line
+  const line = d3.line().x(v=>x(v.util)).y(v=>y(v.riesgo)).curve(d3.curveCatmullRom);
+  g.append('path').datum(d).attr('fill','none')
+    .attr('stroke',C.r).attr('stroke-width',2).attr('d',line);
+
+  // shaded area under curve
+  const area = d3.area().x(v=>x(v.util)).y0(iH).y1(v=>y(v.riesgo)).curve(d3.curveCatmullRom);
+  g.append('path').datum(d).attr('fill',C.r).attr('opacity',.08).attr('d',area);
+
+  const ptColors = [C.r, '#e0607a', C.a, C.g, C.g];
+  g.selectAll('circle').data(d).enter().append('circle')
+    .attr('cx',v=>x(v.util)).attr('cy',v=>y(v.riesgo))
+    .attr('r',7).attr('fill',(_,i)=>ptColors[i]||C.g)
+    .attr('stroke',C.bg).attr('stroke-width',2)
+    .on('mousemove',(e,v)=>showTip(`k = ${v.k}<br>Utilidad: <b>${v.util}%</b><br>Riesgo: <b>${d3.format('.3f')(v.riesgo)}</b>`,e))
+    .on('mouseleave',hideTip);
+
+  g.selectAll('.klabel').data(d).enter().append('text')
+    .attr('class','klabel').attr('x',v=>x(v.util)+9).attr('y',v=>y(v.riesgo)+4)
+    .attr('fill',C.muted).attr('font-size',9).attr('font-family',"'Space Mono',monospace")
+    .text(v=>'k='+v.k);
+})();
+
+// ══════════════════════════════════════ 3. DP curve ══════════════════════════
+(function(){
+  const svgEl = document.getElementById('chart-dp');
+  const W = svgEl.clientWidth || 700, H = 300;
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+  const svg = d3.select(svgEl).attr('viewBox',`0 0 ${W} ${H}`);
+  const d = DATA.dp;
+
+  const x = d3.scaleLog().domain([0.009,11]).range([0,iW]);
+  const y = d3.scaleLog().domain([0.015,25]).range([iH,0]);
+  const g = axes(svg,x,y,'ε (escala log)','Error relativo % (escala log)',W,H,
+                 v=>v, v=>v+'%', 8);
+
+  // "sin garantía" zone ε>1
+  const xLine = x(1);
+  g.append('rect').attr('x',xLine).attr('width',iW-xLine).attr('height',iH)
+    .attr('fill',C.r).attr('opacity',.06);
+  g.append('text').attr('x',xLine+6).attr('y',14)
+    .attr('fill',C.r).attr('opacity',.5)
+    .attr('font-size',9).attr('font-family',"'Space Mono',monospace")
+    .text('ε > 1 → sin garantía fuerte');
+
+  const line = d3.line().x(v=>x(v.eps)).y(v=>y(v.err)).curve(d3.curveCatmullRom);
+  const area = d3.area().x(v=>x(v.eps)).y0(iH).y1(v=>y(v.err)).curve(d3.curveCatmullRom);
+  g.append('path').datum(d).attr('fill',C.a).attr('opacity',.1).attr('d',area);
+  g.append('path').datum(d).attr('fill','none')
+    .attr('stroke',C.a).attr('stroke-width',2.5).attr('d',line);
+
+  g.selectAll('circle').data(d).enter().append('circle')
+    .attr('cx',v=>x(v.eps)).attr('cy',v=>y(v.err))
+    .attr('r',5.5).attr('fill',C.a).attr('stroke',C.bg).attr('stroke-width',2)
+    .on('mousemove',(e,v)=>showTip(`ε = ${v.eps}<br>Error relativo: <b>${v.err}%</b>`,e))
+    .on('mouseleave',hideTip);
+})();
+
+// ══════════════════════════════════════ 4. Ruido IL1 ═════════════════════════
+(function(){
+  const svgEl = document.getElementById('chart-ruido-il1');
+  const W = svgEl.clientWidth || 420, H = 260;
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+  const svg = d3.select(svgEl).attr('viewBox',`0 0 ${W} ${H}`);
+  const d = DATA.ruido;
+
+  const x = d3.scaleLinear().domain([0,1.05]).range([0,iW]);
+  const y = d3.scaleLinear().domain([0,0.085]).range([iH,0]);
+  const g = axes(svg,x,y,'nivel (σ / std)','IL1 normalizado',W,H,
+                 v=>v, v=>d3.format('.3f')(v));
+
+  const area = d3.area().x(v=>x(v.niv)).y0(iH).y1(v=>y(v.il1)).curve(d3.curveCatmullRom);
+  const line = d3.line().x(v=>x(v.niv)).y(v=>y(v.il1)).curve(d3.curveCatmullRom);
+  g.append('path').datum(d).attr('fill',C.b).attr('opacity',.12).attr('d',area);
+  g.append('path').datum(d).attr('fill','none').attr('stroke',C.b).attr('stroke-width',2).attr('d',line);
+  g.selectAll('circle').data(d).enter().append('circle')
+    .attr('cx',v=>x(v.niv)).attr('cy',v=>y(v.il1))
+    .attr('r',5).attr('fill',C.b).attr('stroke',C.bg).attr('stroke-width',2)
+    .on('mousemove',(e,v)=>showTip(`nivel = ${v.niv}<br>IL1 = <b>${v.il1}</b>`,e))
+    .on('mouseleave',hideTip);
+})();
+
+// ══════════════════════════════════════ 5. Ruido correlación ═════════════════
+(function(){
+  const svgEl = document.getElementById('chart-ruido-corr');
+  const W = svgEl.clientWidth || 420, H = 260;
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+  const svg = d3.select(svgEl).attr('viewBox',`0 0 ${W} ${H}`);
+  const d = DATA.ruido;
+
+  const x = d3.scaleLinear().domain([0,1.05]).range([0,iW]);
+  const y = d3.scaleLinear().domain([0.68,1.01]).range([iH,0]);
+  const g = axes(svg,x,y,'nivel (σ / std)','Correlación con original',W,H,
+                 v=>v, v=>d3.format('.2f')(v));
+
+  // threshold line at 0.9
+  g.append('line').attr('x1',0).attr('x2',iW).attr('y1',y(0.9)).attr('y2',y(0.9))
+    .attr('stroke',C.a).attr('stroke-dasharray','5,4').attr('opacity',.5);
+  g.append('text').attr('x',4).attr('y',y(0.9)-6)
+    .attr('fill',C.a).attr('font-size',9).attr('font-family',"'Space Mono',monospace")
+    .text('ρ = 0.9 (umbral práctico)');
+
+  const area = d3.area().x(v=>x(v.niv)).y0(iH).y1(v=>y(v.corr)).curve(d3.curveCatmullRom);
+  const line = d3.line().x(v=>x(v.niv)).y(v=>y(v.corr)).curve(d3.curveCatmullRom);
+  g.append('path').datum(d).attr('fill',C.g).attr('opacity',.1).attr('d',area);
+  g.append('path').datum(d).attr('fill','none').attr('stroke',C.g).attr('stroke-width',2).attr('d',line);
+  g.selectAll('circle').data(d).enter().append('circle')
+    .attr('cx',v=>x(v.niv)).attr('cy',v=>y(v.corr))
+    .attr('r',5).attr('fill',C.g).attr('stroke',C.bg).attr('stroke-width',2)
+    .on('mousemove',(e,v)=>showTip(`nivel = ${v.niv}<br>Correlación = <b>${v.corr}</b>`,e))
+    .on('mouseleave',hideTip);
+})();
+
+// ══════════════════════════════════════ 6. PRAM ══════════════════════════════
+(function(){
+  const svgEl = document.getElementById('chart-pram');
+  const W = svgEl.clientWidth || 700, H = 280;
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+  const svg = d3.select(svgEl).attr('viewBox',`0 0 ${W} ${H}`);
+  const d = DATA.pram;
+
+  const x = d3.scaleLinear().domain([0.48,1.02]).range([0,iW]);
+  const y1 = d3.scaleLinear().domain([0,0.30]).range([iH,0]);
+  const y2 = d3.scaleLinear().domain([0,55]).range([iH,0]);
+  const g = axes(svg,x,y1,'p_diagonal','Distancia TV (eje izq) · % modificados (eje der)',W,H,
+                 v=>v, v=>d3.format('.2f')(v));
+
+  // second y axis
+  g.append('g').attr('class','axis').attr('transform',`translate(${iW},0)`)
+    .call(d3.axisRight(y2).ticks(5).tickFormat(v=>v+'%'));
+
+  const lineTV = d3.line().x(v=>x(v.p)).y(v=>y1(v.tv)).curve(d3.curveCatmullRom);
+  const linePct = d3.line().x(v=>x(v.p)).y(v=>y2(v.pct)).curve(d3.curveCatmullRom);
+  const areaTV = d3.area().x(v=>x(v.p)).y0(iH).y1(v=>y1(v.tv)).curve(d3.curveCatmullRom);
+
+  g.append('path').datum(d).attr('fill',C.g).attr('opacity',.08).attr('d',areaTV);
+  g.append('path').datum(d).attr('fill','none').attr('stroke',C.g).attr('stroke-width',2.2).attr('d',lineTV);
+  g.append('path').datum(d).attr('fill','none').attr('stroke',C.a).attr('stroke-width',2).attr('stroke-dasharray','6,3').attr('d',linePct);
+
+  // reference line at p=0.85
+  g.append('line').attr('x1',x(0.85)).attr('x2',x(0.85)).attr('y1',0).attr('y2',iH)
+    .attr('stroke',C.muted).attr('stroke-dasharray','4,4').attr('opacity',.4);
+  g.append('text').attr('x',x(0.85)+5).attr('y',18)
+    .attr('fill',C.muted).attr('font-size',9).attr('font-family',"'Space Mono',monospace")
+    .text('p=0.85 (recomendado)');
+
+  g.selectAll('.dot-tv').data(d).enter().append('circle').attr('class','dot-tv')
+    .attr('cx',v=>x(v.p)).attr('cy',v=>y1(v.tv))
+    .attr('r',4.5).attr('fill',C.g).attr('stroke',C.bg).attr('stroke-width',2)
+    .on('mousemove',(e,v)=>showTip(`p_diag = ${v.p}<br>TV = <b>${v.tv}</b><br>Modificados = <b>${v.pct}%</b>`,e))
+    .on('mouseleave',hideTip);
+})();
+
+// ══════════════════════════════════════ 7. CP ════════════════════════════════
+(function(){
+  const svgEl = document.getElementById('chart-cp');
+  const W = svgEl.clientWidth || 640, H = 280;
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+  const svg = d3.select(svgEl).attr('viewBox',`0 0 ${W} ${H}`);
+  const d = DATA.cp;
+
+  const labels = ['2 dígitos\n(28***)','3 dígitos\n(280**)','4 dígitos\n(2804*)','5 dígitos\n(28041)'];
+  const x = d3.scaleBand().domain(d.map(v=>v.prec)).range([0,iW]).padding(.3);
+  const y = d3.scaleLinear().domain([0,105]).range([iH,0]);
+  const g = axes(svg,x,y,'Precisión del código postal','% registros únicos (k=1)',W,H,
+                 null, v=>v+'%');
+  g.select('.axis:nth-child(3)').remove();
+  const xMap = {5:'5 dígitos',4:'4 dígitos',3:'3 dígitos',2:'2 dígitos'};
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`)
+    .call(d3.axisBottom(x).tickFormat(v=>xMap[v]));
+
+  const colorBar = v => v.unicos > 90 ? C.r : v.unicos > 50 ? C.a : '#5a9e6a';
+
+  g.selectAll('rect').data(d).enter().append('rect')
+    .attr('x',v=>x(v.prec)).attr('y',v=>y(v.unicos))
+    .attr('width',x.bandwidth()).attr('height',v=>iH-y(v.unicos))
+    .attr('fill',colorBar).attr('rx',3).attr('opacity',.85)
+    .on('mousemove',(e,v)=>showTip(`CP a ${v.prec} dígitos<br>Únicos: <b>${v.unicos}%</b>`,e))
+    .on('mouseleave',hideTip);
+
+  g.selectAll('.vlabel').data(d).enter().append('text')
+    .attr('class','vlabel')
+    .attr('x',v=>x(v.prec)+x.bandwidth()/2).attr('y',v=>y(v.unicos)-7)
+    .attr('text-anchor','middle').attr('fill',C.text)
+    .attr('font-family',"'Space Mono',monospace").attr('font-size',11).attr('font-weight','700')
+    .text(v=>v.unicos+'%');
+})();
+
+// ══════════════════════════════════════ 8. Composición ═══════════════════════
+(function(){
+  const svgEl = document.getElementById('chart-comp');
+  const W = svgEl.clientWidth || 700, H = 300;
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+  const svg = d3.select(svgEl).attr('viewBox',`0 0 ${W} ${H}`);
+  const d = DATA.comp;
+
+  const x = d3.scaleLog().domain([0.8,1200]).range([0,iW]);
+  const y = d3.scaleLog().domain([0.08,120]).range([iH,0]);
+  const g = axes(svg,x,y,'Número de consultas k (log)','ε total acumulado (log)',W,H,
+                 v=>v, v=>v, 8);
+
+  // ε=1 horizontal line
+  g.append('line').attr('x1',0).attr('x2',iW).attr('y1',y(1)).attr('y2',y(1))
+    .attr('stroke',C.muted).attr('stroke-dasharray','5,4').attr('opacity',.4);
+  g.append('text').attr('x',4).attr('y',y(1)-6)
+    .attr('fill',C.muted).attr('font-size',9).attr('font-family',"'Space Mono',monospace")
+    .text('ε = 1 (límite teórico razonable)');
+
+  const lineB = d3.line().x(v=>x(v.k)).y(v=>y(v.bas)).curve(d3.curveLinear);
+  const lineA = d3.line().x(v=>x(v.k)).y(v=>y(v.adv)).curve(d3.curveLinear);
+
+  g.append('path').datum(d).attr('fill','none').attr('stroke',C.r)
+    .attr('stroke-width',2.5).attr('d',lineB);
+  g.append('path').datum(d).attr('fill','none').attr('stroke',C.g)
+    .attr('stroke-width',2.5).attr('d',lineA);
+
+  // gap annotation at k=100
+  const k100 = d.find(v=>v.k===100);
+  g.append('line').attr('x1',x(100)).attr('x2',x(100))
+    .attr('y1',y(k100.adv)).attr('y2',y(k100.bas))
+    .attr('stroke',C.a).attr('stroke-width',1.5).attr('stroke-dasharray','3,3');
+  g.append('text').attr('x',x(100)+8).attr('y',y(Math.sqrt(k100.bas*k100.adv)))
+    .attr('fill',C.a).attr('font-size',10).attr('font-family',"'Space Mono',monospace")
+    .text('÷2.1×');
+
+  g.selectAll('.dot-bas').data(d).enter().append('circle').attr('class','dot-bas')
+    .attr('cx',v=>x(v.k)).attr('cy',v=>y(v.bas)).attr('r',4)
+    .attr('fill',C.r).attr('stroke',C.bg).attr('stroke-width',2)
+    .on('mousemove',(e,v)=>showTip(`k = ${v.k}<br>Básica: <b>ε = ${v.bas}</b>`,e))
+    .on('mouseleave',hideTip);
+
+  g.selectAll('.dot-adv').data(d).enter().append('circle').attr('class','dot-adv')
+    .attr('cx',v=>x(v.k)).attr('cy',v=>y(v.adv)).attr('r',4)
+    .attr('fill',C.g).attr('stroke',C.bg).attr('stroke-width',2)
+    .on('mousemove',(e,v)=>showTip(`k = ${v.k}<br>Avanzada: <b>ε = ${v.adv}</b>`,e))
+    .on('mouseleave',hideTip);
+})();
+
+// ── tab switching ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.panel).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
