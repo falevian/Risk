@@ -82,14 +82,6 @@
       <canvas id="chartLoss" width="820" height="300"></canvas>
       <canvas id="chartCurve" width="820" height="300"></canvas>
 
-      <div class="kpis">
-        <div class="kpi alt"><div class="k">VaR 99% cartera (1-en-100)</div><div class="v" id="kpiVar99">—</div></div>
-        <div class="kpi warn"><div class="k">Capital Solvencia II (99,5%)</div><div class="v" id="kpiSolv">—</div></div>
-        <div class="kpi"><div class="k">Beneficio de diversificación</div><div class="v" id="kpiDiv">—</div></div>
-      </div>
-      <canvas id="chartVar" width="820" height="300"></canvas>
-      <p class="note" id="divNote"></p>
-
       <div class="panel">
         <h2>Detalle por tipo</h2>
         <table id="tbl">
@@ -184,47 +176,7 @@ function compute(){
   const probAlguno=1-Math.exp(-tasaSup);
   const totalAnnual=rows.reduce((a,r)=>a+r.perdida,0);
   const top=rows.slice().sort((a,b)=>b.perdida-a.perdida)[0];
-  // ── VaR/TVaR por simulación Poisson compuesta (se recalcula al mover λ) ──
-  const vt=simularVaRTVaR(rows);
-  return {rows,thr,totalAnnual,top,probAlguno,vt};
-}
-
-// muestra una lognormal: exp(mu + s*Z), con Z normal estándar (Box-Muller)
-function randn(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
-  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
-function randPoisson(lam){ // Knuth
-  if(lam<=0)return 0; const L=Math.exp(-lam); let k=0,p=1;
-  do{k++;p*=Math.random();}while(p>L); return k-1; }
-function quantile(sorted,q){ const i=(sorted.length-1)*q, lo=Math.floor(i), hi=Math.ceil(i);
-  return lo===hi?sorted[lo]:sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo); }
-
-function simularVaRTVaR(rows){
-  const N=15000;                       // años simulados (fluido en navegador)
-  const total=new Float64Array(N);
-  const porTipo=rows.map(()=>new Float64Array(N));
-  for(let y=0;y<N;y++){
-    let s=0;
-    for(let j=0;j<rows.length;j++){
-      const r=rows[j], n=randPoisson(r.lam_t); let pl=0;
-      for(let i=0;i<n;i++) pl+=Math.exp(r.mu+r.s*randn());
-      porTipo[j][y]=pl; s+=pl;
-    }
-    total[y]=s;
-  }
-  const qs=[0.95,0.99,0.995];
-  const tipoStats=rows.map((r,j)=>{
-    const sorted=Array.from(porTipo[j]).sort((a,b)=>a-b);
-    const out={tipo:r.tipo,color:r.color};
-    qs.forEach(q=>{ const v=quantile(sorted,q); const cola=sorted.filter(x=>x>v);
-      out["VaR"+q]=v; out["TVaR"+q]=cola.length?cola.reduce((a,b)=>a+b,0)/cola.length:v; });
-    return out;
-  });
-  const sortedT=Array.from(total).sort((a,b)=>a-b);
-  const agg={}; qs.forEach(q=>{ const v=quantile(sortedT,q); const cola=sortedT.filter(x=>x>v);
-    agg["VaR"+q]=v; agg["TVaR"+q]=cola.length?cola.reduce((a,b)=>a+b,0)/cola.length:v; });
-  agg.sumaVaR99=tipoStats.reduce((a,r)=>a+r["VaR0.99"],0);
-  agg.diversificacion=agg.sumaVaR99-agg["VaR0.99"];
-  return {tipoStats,agg};
+  return {rows,thr,totalAnnual,top,probAlguno};
 }
 
 // ── dibujo de gráficos en canvas ──────────────────────────────────────────
@@ -282,8 +234,7 @@ function render(){
   $("lamLabel").textContent=parseFloat($("lambda").value).toFixed(1);
   $("thrLabel").textContent=parseFloat($("thr").value).toFixed(2)+" M€";
   $("sevLabel").textContent="×"+parseFloat($("sevf").value).toFixed(2);
-  const res=compute();
-  const {rows,thr,totalAnnual,top,probAlguno}=res;
+  const {rows,thr,totalAnnual,top,probAlguno}=compute();
   $("kpiAnnual").textContent=fmtEur(totalAnnual);
   $("kpiTop").textContent=top?top.tipo:"—";
   $("kpiProb").textContent=(probAlguno*100).toFixed(1)+"%";
@@ -300,43 +251,6 @@ function render(){
   });
   barChart($("chartLoss"),rows);
   curveChart($("chartCurve"),rows,thr);
-  // ── año malo: KPIs + gráfico ──
-  const {tipoStats,agg}=res.vt;
-  $("kpiVar99").textContent=fmtEur(agg["VaR0.99"]);
-  $("kpiSolv").textContent=fmtEur(agg["VaR0.995"]);
-  $("kpiDiv").textContent="−"+fmtEur(agg.diversificacion);
-  $("divNote").textContent=
-    `Sumar el VaR99 de cada tipo daría ${fmtEur(agg.sumaVaR99)}; como no todos tienen su año malo a la vez, `+
-    `el VaR99 real de la cartera es ${fmtEur(agg["VaR0.99"])}. La diferencia es diversificación. `+
-    `TVaR99 (media del año malo): ${fmtEur(agg["TVaR0.99"])}.`;
-  varChart($("chartVar"),tipoStats);
-}
-
-function varChart(cv, stats){
-  const ctx=cv.getContext("2d"), W=cv.width, H=cv.height, padL=140, padR=90, padT=34, padB=24;
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle="#0A2540"; ctx.font="bold 14px Arial";
-  ctx.fillText("El año malo, por tipo (VaR / TVaR, M€)", padL, 18);
-  const data=stats.slice().sort((a,b)=>a["VaR0.99"]-b["VaR0.99"]);
-  const max=Math.max(...data.map(r=>r["TVaR0.99"]),1);
-  const bh=(H-padT-padB)/data.length*0.66, gap=(H-padT-padB)/data.length*0.34;
-  const SH={"Phishing":"Phishing","Ransomware - coste total":"Ransomware","Cadena de suministro":"Cadena sum.",
-   "Explotación de vulnerabilidad":"Explot. vuln.","Credenciales robadas":"Credenciales",
-   "Error de sistema / config.":"Error sist.","Insider malicioso":"Insider","Denegación de servicio (DDoS)":"DDoS"};
-  data.forEach((r,i)=>{
-    const y=padT+i*(bh+gap), sc=(W-padL-padR)/max;
-    // TVaR99 (fondo claro), VaR99 (medio), VaR95 (mint)
-    ctx.fillStyle="#CBD5E1"; ctx.fillRect(padL,y,r["TVaR0.99"]*sc,bh);
-    ctx.fillStyle="#065A82"; ctx.fillRect(padL,y,r["VaR0.99"]*sc,bh);
-    ctx.fillStyle="#02C39A"; ctx.fillRect(padL,y,r["VaR0.95"]*sc,bh);
-    ctx.fillStyle="#1A1A2E"; ctx.font="12px Arial"; ctx.textAlign="right";
-    ctx.fillText(SH[r.tipo]||r.tipo,padL-8,y+bh/2+4);
-    ctx.textAlign="left"; ctx.fillText((r["VaR0.99"]/1e6).toFixed(1),padL+r["TVaR0.99"]*sc+6,y+bh/2+4);
-  });
-  // leyenda
-  ctx.textAlign="left"; ctx.font="11px Arial"; let lx=padL;
-  [["VaR 95%","#02C39A"],["VaR 99%","#065A82"],["TVaR 99%","#CBD5E1"]].forEach(([t,c])=>{
-    ctx.fillStyle=c; ctx.fillRect(lx,H-14,10,10); ctx.fillStyle="#1A1A2E"; ctx.fillText(t,lx+14,H-5); lx+=90;});
 }
 
 ["lambda","thr","sevf"].forEach(id=>$(id).addEventListener("input",render));
