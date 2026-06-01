@@ -94,7 +94,7 @@
         <h2>Detalle por tipo</h2>
         <table id="tbl">
           <thead><tr><th>Tipo</th><th>Mediana</th><th>p90</th><th>p99</th>
-            <th>λ/año</th><th>P(&gt;umbral)</th><th>Pérdida anual</th></tr></thead>
+            <th>λ/año</th><th>P(≥1 año)</th><th>P(&gt;umbral)</th><th>Pérdida anual</th><th>Rango anual (p25–p75)</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -104,6 +104,8 @@
   <div class="footer">
     Modelo bayesiano de severidad lognormal por tipo de ataque. Parámetros (μ, σ) del posterior.
     Mientras la etiqueta diga «benchmark», las cifras proceden de informes del sector, no de incidentes internos.
+    <br><b>P(≥1 año)</b>: probabilidad de sufrir al menos un incidente de ese tipo en un año, con frecuencia Poisson(λ): 1−e<sup>−λ</sup>.
+    <b>Rango anual (p25–p75)</b>: dónde cae la pérdida anual de ese tipo el 50% de los años. Cuando λ&lt;1, lo más probable es que un año no haya incidente de ese tipo: por eso el p25 (y a veces la mediana) puede ser 0 € — el coste se concentra en los años en que sí ocurre.
     La probabilidad anual usa P(≥1 incidente que supere el umbral) bajo Poisson(λ).
   </div>
 
@@ -217,6 +219,8 @@ function simularVaRTVaR(rows){
     const out={tipo:r.tipo,color:r.color};
     qs.forEach(q=>{ const v=quantile(sorted,q); const cola=sorted.filter(x=>x>v);
       out["VaR"+q]=v; out["TVaR"+q]=cola.length?cola.reduce((a,b)=>a+b,0)/cola.length:v; });
+    // rango central de la pérdida anual del tipo (p25-p75) + mediana
+    out.anualP25=quantile(sorted,0.25); out.anualP50=quantile(sorted,0.50); out.anualP75=quantile(sorted,0.75);
     return out;
   });
   const sortedT=Array.from(total).sort((a,b)=>a-b);
@@ -290,12 +294,20 @@ function render(){
   // tabla
   const tb=$("tbl").querySelector("tbody"); tb.innerHTML="";
   const maxL=Math.max(...rows.map(r=>r.perdida),1);
+  // mapa de pérdida anual por tipo (p25-p75) desde la simulación
+  const statsByTipo={}; res.vt.tipoStats.forEach(t=>statsByTipo[t.tipo]=t);
   rows.slice().sort((a,b)=>b.perdida-a.perdida).forEach(r=>{
     const tr=document.createElement("tr");
+    const pAlMenos1=1-Math.exp(-r.lam_t);                 // P(>=1 incidente al año)
+    const st=statsByTipo[r.tipo]||{};                      // rango anual p25-p75
+    const rango = (st.anualP75!==undefined)
+      ? `${fmtEur(st.anualP25)} – ${fmtEur(st.anualP75)}`
+      : "—";
     tr.innerHTML=`<td><span style="color:${r.color}">●</span> ${r.tipo}</td>
       <td>${fmtEur(r.mediana)}</td><td>${fmtEur(r.p90)}</td><td>${fmtEur(r.p99)}</td>
-      <td>${r.lam_t.toFixed(2)}</td><td>${(r.pSup*100).toFixed(1)}%</td>
-      <td>${fmtEur(r.perdida)} <span class="bar" style="width:${40*r.perdida/maxL}px;background:${r.color}"></span></td>`;
+      <td>${r.lam_t.toFixed(2)}</td><td>${(pAlMenos1*100).toFixed(0)}%</td><td>${(r.pSup*100).toFixed(1)}%</td>
+      <td>${fmtEur(r.perdida)} <span class="bar" style="width:${40*r.perdida/maxL}px;background:${r.color}"></span></td>
+      <td>${rango}</td>`;
     tb.appendChild(tr);
   });
   barChart($("chartLoss"),rows);
