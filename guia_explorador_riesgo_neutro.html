@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guía del Explorador de Riesgo</title>
+<style>
+  :root{
+    --ink:#222628; --soft:#5a6066; --line:#d4d9dd; --line2:#e8ebee;
+    --bg:#ffffff; --panel:#f6f7f8; --accent:#2b5070; --accentline:#9aa9b6;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:16px; line-height:1.6;
+  }
+  .doc{max-width:760px; margin:0 auto; padding:56px 28px 96px}
+  .mast{border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:8px}
+  .mast .kicker{font-family:Arial,Helvetica,sans-serif; font-size:11px; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--soft); margin-bottom:10px}
+  .mast h1{font-size:30px; font-weight:normal; margin:0; letter-spacing:-.01em}
+  .mast .sub{color:var(--soft); font-size:15px; margin-top:8px}
+  .meta{font-family:Arial,Helvetica,sans-serif; font-size:12px; color:var(--soft);
+    margin:14px 0 36px; padding-bottom:14px; border-bottom:1px solid var(--line2)}
+  .toc{font-family:Arial,Helvetica,sans-serif; font-size:13.5px; margin-bottom:44px}
+  .toc div{margin:6px 0; display:flex; gap:10px}
+  .toc .n{color:var(--soft); min-width:22px}
+  .toc a{color:var(--accent); text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  h2{font-size:20px; font-weight:normal; margin:46px 0 4px; padding-top:10px;
+    border-top:1px solid var(--line); letter-spacing:-.01em}
+  h2 .sn{font-family:Arial,Helvetica,sans-serif; font-size:12px; color:var(--soft);
+    display:block; letter-spacing:1px; margin-bottom:6px; padding-top:6px}
+  h3{font-size:16px; font-weight:bold; margin:24px 0 6px}
+  p{margin:11px 0}
+  .intro{color:var(--soft)}
+  strong{color:var(--ink)}
+  code{font-family:"SF Mono",Consolas,monospace; font-size:13.5px; background:var(--panel);
+    padding:1px 5px; border:1px solid var(--line2); border-radius:2px}
+  table.def{width:100%; border-collapse:collapse; margin:16px 0; font-size:14.5px}
+  table.def th{text-align:left; font-family:Arial,Helvetica,sans-serif; font-size:11px;
+    text-transform:uppercase; letter-spacing:.5px; color:var(--soft);
+    border-bottom:1.5px solid var(--ink); padding:6px 10px}
+  table.def td{border-bottom:1px solid var(--line2); padding:9px 10px; vertical-align:top}
+  table.def td.field{font-family:Arial,Helvetica,sans-serif; font-weight:bold; font-size:13px;
+    white-space:nowrap; color:var(--accent); width:1%}
+  table.def .rng{color:var(--soft); font-size:12.5px; font-family:Arial,Helvetica,sans-serif}
+  .ej{margin:18px 0 6px; padding:18px 20px; background:var(--panel); border:1px solid var(--line)}
+  .ej .pregunta{font-style:italic; font-size:16px; margin:0 0 12px; color:var(--ink)}
+  .ej ol{margin:0 0 12px; padding-left:22px; font-size:14.5px}
+  .ej ol li{margin:5px 0}
+  .ej .resp{font-size:14.5px; border-top:1px solid var(--line); padding-top:10px; margin-top:4px}
+  .ej .resp .lab{font-family:Arial,Helvetica,sans-serif; font-size:11px; letter-spacing:.5px;
+    text-transform:uppercase; color:var(--soft); display:block; margin-bottom:3px}
+  .nota{font-size:14px; color:var(--soft); border-left:3px solid var(--accentline);
+    padding:4px 0 4px 16px; margin:16px 0}
+  footer{font-family:Arial,Helvetica,sans-serif; font-size:11.5px; color:var(--soft);
+    margin-top:56px; padding-top:14px; border-top:1px solid var(--line2)}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="mast">
+    <div class="kicker">Documentación interna</div>
+    <h1>Guía del Explorador de Riesgo</h1>
+    <div class="sub">Descripción de los campos y casos de uso.</div>
+  </div>
+  <div class="meta">Herramienta de cuantificación de coste de incidentes por tipo de ataque · uso interno</div>
+
+  <nav class="toc">
+    <div><span class="n">1</span><a href="#proposito">Propósito</a></div>
+    <div><span class="n">2</span><a href="#controles">Controles del escenario</a></div>
+    <div><span class="n">3</span><a href="#kpis">Indicadores</a></div>
+    <div><span class="n">4</span><a href="#tabla">Tabla de detalle por tipo</a></div>
+    <div><span class="n">5</span><a href="#casos">Casos de uso</a></div>
+    <div><span class="n">6</span><a href="#notas">Notas de interpretación</a></div>
+  </nav>
+
+  <h2 id="proposito"><span class="sn">SECCIÓN 1</span>Propósito</h2>
+  <p class="intro">El explorador permite consultar el modelo de coste de incidentes de forma interactiva: se ajustan unos parámetros de escenario y la pantalla recalcula las cifras de riesgo en euros y sus probabilidades.</p>
+  <p>Cubre dos tipos de consulta. Por un lado, el coste de un incidente individual de un tipo dado: cuánto cuesta el caso típico y cuánto los casos graves. Por otro, la pérdida agregada de un año completo: la esperada en un año normal y la de un año adverso.</p>
+  <p>El coste de un incidente se trata como una distribución, no como un valor único, porque la mayoría de incidentes son de coste moderado y una minoría son muy costosos. Por eso las salidas son la mediana, los percentiles altos y las probabilidades de superar un umbral, en lugar de un único «coste medio».</p>
+
+  <h2 id="controles"><span class="sn">SECCIÓN 2</span>Controles del escenario</h2>
+  <p>Los controles están a la izquierda. Cualquier cambio recalcula la pantalla.</p>
+  <table class="def">
+    <thead><tr><th>Control</th><th>Función</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="field">λ total</td>
+        <td>Número de incidentes esperados al año, sumando todos los tipos. Representa el nivel de exposición. El total se reparte entre los tipos según su frecuencia relativa. Es el parámetro de mayor influencia sobre los resultados; conviene probar varios valores si no se dispone de un dato propio. <span class="rng">Rango 0,2 – 12.</span></td>
+      </tr>
+      <tr>
+        <td class="field">Umbral de coste</td>
+        <td>Nivel de pérdida de referencia, en millones de euros. La herramienta calcula la probabilidad de superarlo. <span class="rng">Rango 0,05 – 40 M€.</span></td>
+      </tr>
+      <tr>
+        <td class="field">Factor de severidad</td>
+        <td>Multiplicador para análisis de sensibilidad: permite suponer que los incidentes resultan más o menos costosos que en el escenario base. Valor 1,00 = escenario base. <span class="rng">Rango ×0,5 – ×2.</span></td>
+      </tr>
+      <tr>
+        <td class="field">Selección de tipos</td>
+        <td>Casillas para incluir o excluir cada tipo de ataque del cálculo agregado. Permite aislar uno o varios vectores, o ver el riesgo sin contar un tipo concreto.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="kpis"><span class="sn">SECCIÓN 3</span>Indicadores</h2>
+  <p>Las tarjetas superiores resumen el escenario en dos bloques.</p>
+
+  <h3>Situación esperada</h3>
+  <table class="def">
+    <tbody>
+      <tr><td class="field">Pérdida anual esperada</td><td>Pérdida media anual sumando todos los tipos incluidos. Corresponde a la cifra de provisión de base.</td></tr>
+      <tr><td class="field">Tipo que más concentra</td><td>Vector con mayor pérdida anual esperada.</td></tr>
+      <tr><td class="field">P(incidente &gt; umbral)</td><td>Probabilidad de que ocurra al menos un incidente que supere el umbral durante el año.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Año adverso</h3>
+  <table class="def">
+    <tbody>
+      <tr><td class="field">Año malo (1/100)</td><td>Pérdida anual total que solo se supera uno de cada cien años.</td></tr>
+      <tr><td class="field">Año extremo (1/200)</td><td>Equivalente para un evento más raro: uno de cada doscientos años.</td></tr>
+      <tr><td class="field">Ahorro de agregación</td><td>Diferencia entre sumar el peor año de cada tipo por separado y calcular el riesgo del conjunto. Los tipos rara vez tienen su peor año a la vez, de modo que sumarlos sobreestima el capital necesario.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="tabla"><span class="sn">SECCIÓN 4</span>Tabla de detalle por tipo</h2>
+  <p>Una fila por tipo de ataque. Las columnas van del coste de un incidente individual a la pérdida anual del vector.</p>
+  <table class="def">
+    <thead><tr><th>Columna</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td class="field">Tipo</td><td>Vector de ataque.</td></tr>
+      <tr><td class="field">Mediana</td><td>Coste del incidente típico. La mitad de los incidentes cuestan menos y la mitad más.</td></tr>
+      <tr><td class="field">p90</td><td>Coste que supera uno de cada diez incidentes.</td></tr>
+      <tr><td class="field">p99</td><td>Coste que supera uno de cada cien incidentes. Una distancia grande entre p99 y mediana indica cola pesada: el riesgo se concentra en pocos eventos costosos.</td></tr>
+      <tr><td class="field">λ/año</td><td>Incidentes esperados al año de ese tipo (reparto del λ total según su frecuencia).</td></tr>
+      <tr><td class="field">P(≥1 año)</td><td>Probabilidad de al menos un incidente de ese tipo en el año. Con λ inferior a 1, lo más probable es no tener ninguno.</td></tr>
+      <tr><td class="field">P(&gt;umbral)</td><td>Probabilidad de que un incidente de ese tipo supere el umbral fijado.</td></tr>
+      <tr><td class="field">Pérdida anual</td><td>Pérdida esperada al año por ese tipo (frecuencia × coste medio). La barra indica su tamaño relativo.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="casos"><span class="sn">SECCIÓN 5</span>Casos de uso</h2>
+
+  <div class="ej">
+    <p class="pregunta">¿Qué tipo de ataque concentra mayor riesgo económico?</p>
+    <ol>
+      <li>Mantener los controles en sus valores por defecto y todos los tipos incluidos.</li>
+      <li>Consultar el indicador «Tipo que más concentra».</li>
+      <li>Verificar en la tabla, ordenada por pérdida anual (barra más larga).</li>
+      <li>Comparar mediana y p99 de ese tipo para distinguir si el riesgo procede del coste típico o de la cola.</li>
+    </ol>
+    <div class="resp"><span class="lab">Interpretación</span>El tipo con mayor pérdida anual es la prioridad. Si su p99 supera con holgura a su mediana, el riesgo está en los eventos graves, lo que justifica medidas de prevención o transferencia además de los controles ordinarios.</div>
+  </div>
+
+  <div class="ej">
+    <p class="pregunta">¿Qué cifra reservar como colchón para un año adverso?</p>
+    <ol>
+      <li>Ajustar λ total al nivel de exposición real, si se conoce.</li>
+      <li>Leer el indicador «Año malo (1/100)»: pérdida superada solo el 1% de los años.</li>
+      <li>Para un criterio más conservador, usar «Año extremo (1/200)».</li>
+      <li>Registrar el «ahorro de agregación» como justificación para no sumar los peores casos individuales.</li>
+    </ol>
+    <div class="resp"><span class="lab">Interpretación</span>El año malo es la referencia habitual de colchón; el año extremo es la versión prudente. El ahorro de agregación respalda que la reserva no debe equivaler a la suma de los peores casos de cada tipo.</div>
+  </div>
+
+  <div class="ej">
+    <p class="pregunta">¿Cómo cambia el riesgo ante un aumento de exposición?</p>
+    <ol>
+      <li>Anotar la pérdida anual esperada y el año malo con el λ actual.</li>
+      <li>Aumentar λ total al nivel previsto.</li>
+      <li>Comparar ambos indicadores antes y después.</li>
+    </ol>
+    <div class="resp"><span class="lab">Interpretación</span>La pérdida esperada crece de forma aproximadamente proporcional a λ. El año malo crece algo menos, porque los picos de los distintos tipos no se acumulan en la misma proporción.</div>
+  </div>
+
+  <div class="ej">
+    <p class="pregunta">¿Qué límite de ciberseguro contratar?</p>
+    <ol>
+      <li>Fijar el umbral de coste en el límite de póliza considerado.</li>
+      <li>Leer «P(incidente &gt; umbral)»: probabilidad de que un incidente supere ese límite.</li>
+      <li>Comparar el año malo y el año extremo con el límite para ver si la cobertura es suficiente.</li>
+      <li>En la tabla, identificar los tipos con p99 por encima del límite: son los que podrían desbordarlo.</li>
+    </ol>
+    <div class="resp"><span class="lab">Interpretación</span>Una cobertura próxima al año malo protege la mayoría de los años. El tramo entre el año malo y el extremo es el riesgo retenido o negociado. Los tipos con p99 alto son los que la póliza debe contemplar.</div>
+  </div>
+
+  <div class="ej">
+    <p class="pregunta">¿Qué riesgo evita un control concreto?</p>
+    <ol>
+      <li>Anotar la pérdida anual esperada total con todos los tipos incluidos.</li>
+      <li>Excluir el tipo que el control eliminaría.</li>
+      <li>Observar la reducción de la pérdida anual y del año malo.</li>
+      <li>Comparar esa reducción con el coste del control.</li>
+    </ol>
+    <div class="resp"><span class="lab">Interpretación</span>La caída de la pérdida anual al excluir el tipo es el riesgo en euros que el control evita. Si el control reduce el vector a la mitad en lugar de eliminarlo, se considera aproximadamente la mitad de esa cifra. Para simular una reducción parcial puede bajarse λ total de forma proporcional, o usarse el factor de severidad si el control reduce el coste por incidente en vez de la frecuencia.</div>
+  </div>
+
+  <h2 id="notas"><span class="sn">SECCIÓN 6</span>Notas de interpretación</h2>
+  <p>Las columnas Mediana, p90 y p99 se refieren al coste de un incidente individual. El año malo es la pérdida del año completo, sumando incidentes. Son magnitudes distintas y no deben confundirse.</p>
+  <p>En distribuciones de cola pesada la media queda por encima del caso típico, de modo que no representa bien «el coste». Conviene leer la mediana junto con el p99.</p>
+  <p>El año malo agregado es menor que la suma de los años malos por tipo, porque no coinciden en el tiempo. Esa diferencia es la magnitud que recoge el ahorro de agregación.</p>
+  <div class="nota">Mientras el indicador de datos muestre «benchmark», las cifras son valores de referencia del sector, no de incidentes propios. Sirven para dimensionar y priorizar; las cifras propias requieren alimentar el modelo con datos internos.</div>
+
+  <footer>Documento de uso interno · Explorador de Riesgo</footer>
+
+</div>
+</body>
+</html>
