@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matriz de riesgo RSIT — explorador</title>
+<style>
+  :root{
+    --ink:#222628; --soft:#5a6066; --line:#d4d9dd; --line2:#e8ebee;
+    --bg:#ffffff; --panel:#f6f7f8; --accent:#2b5070;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:Georgia,"Times New Roman",serif;font-size:16px;line-height:1.55}
+  .doc{max-width:920px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:26px;font-weight:normal;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--soft);font-size:14px;margin-bottom:24px;font-family:Arial,Helvetica,sans-serif}
+  h2{font-size:18px;font-weight:normal;margin:34px 0 6px;border-top:1px solid var(--line);padding-top:16px}
+  .barctl{font-family:Arial,Helvetica,sans-serif;font-size:13px;margin-bottom:6px;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .lab{font-weight:bold;color:var(--ink)}
+  .seg{display:inline-flex;border:1px solid var(--accent);border-radius:4px;overflow:hidden}
+  .seg button{font-family:inherit;font-size:13px;padding:7px 14px;background:var(--bg);
+    color:var(--accent);border:none;cursor:pointer;border-right:1px solid var(--accent)}
+  .seg button:last-child{border-right:none}
+  .seg button.on{background:var(--accent);color:#fff}
+  .crit-desc{font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:var(--soft);margin:8px 0 8px;min-height:16px}
+  .toggle{font-family:Arial,Helvetica,sans-serif;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+  .btn{font-family:Arial,Helvetica,sans-serif;font-size:13px;padding:7px 14px;border:1px solid var(--accent);
+    background:var(--bg);color:var(--accent);border-radius:4px;cursor:pointer}
+  .btn:hover{background:var(--panel)}
+  table.mx{border-collapse:collapse;margin:16px auto 4px}
+  table.mx td{border:2px solid #fff;text-align:center;font-family:Arial,Helvetica,sans-serif}
+  table.mx .cell{width:150px;height:78px;vertical-align:middle;padding:3px}
+  table.mx .chip{display:block;background:rgba(255,255,255,.93);color:#1a1a1a;border-radius:4px;
+    font-size:11.5px;padding:3px 4px;margin:2px auto;max-width:142px;line-height:1.25}
+  table.mx .chip.agg{background:#1a1a1a;color:#fff;font-weight:bold}
+  table.mx .ylab{font-size:12px;color:var(--soft);padding:0 10px 0 0;text-align:right;white-space:nowrap}
+  table.mx .ytitle{font-size:12px;color:var(--ink);font-weight:bold}
+  table.mx .xlab{font-size:11.5px;color:var(--soft);padding-top:6px;line-height:1.3}
+  table.mx .xlab b{color:var(--ink);font-weight:bold;display:block}
+  .xtitle{text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:var(--ink);margin-top:2px}
+  table.vals{width:100%;border-collapse:collapse;margin-top:12px;font-size:13.5px;font-family:Arial,Helvetica,sans-serif}
+  table.vals th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--soft);
+    border-bottom:1.5px solid var(--ink);padding:7px 9px}
+  table.vals td{border-bottom:1px solid var(--line2);padding:8px 9px;vertical-align:top}
+  table.vals td.num{text-align:right;font-variant-numeric:tabular-nums}
+  table.vals .vecs{color:var(--soft);font-size:12px}
+  table.vals tr.vacia td{color:#a36;opacity:.75;font-style:italic}
+  table.vals tr.agg td{border-top:2px solid var(--ink);font-weight:bold;background:var(--panel)}
+  .badge{display:inline-block;padding:2px 9px;border-radius:3px;font-size:12px;color:#1a1a1a}
+  .mapwrap{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 24px;font-family:Arial,Helvetica,sans-serif;font-size:13px;margin-top:10px}
+  .maprow{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line2);padding:5px 0}
+  .maprow span{color:var(--ink)}
+  .maprow select{font-family:inherit;font-size:12.5px;padding:3px 4px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink);max-width:170px}
+  .nota{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:var(--soft);border-left:3px solid #9aa9b6;padding:6px 0 6px 16px;margin:16px 0}
+  details{font-family:Arial,Helvetica,sans-serif;font-size:13px;margin-top:8px}
+  summary{cursor:pointer;color:var(--accent);font-weight:bold}
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>Matriz de riesgo por escenarios</h1>
+  <div class="sub">Explorador: criterio de impacto, nivel agregado y mapeo de vectores editable · cálculo en vivo</div>
+
+  <div class="barctl">
+    <span class="lab">Criterio de impacto:</span>
+    <span class="seg" id="seg">
+      <button data-k="p99" class="on">p99 del incidente</button>
+      <button data-k="var99">VaR99 (año malo)</button>
+      <button data-k="esperada">Pérdida anual esperada</button>
+    </span>
+    <label class="toggle"><input type="checkbox" id="aggTog" checked> Mostrar nivel agregado</label>
+  </div>
+  <div class="crit-desc" id="critDesc"></div>
+
+  <table class="mx" id="mx"></table>
+  <div class="xtitle">Probabilidad — P(al menos un incidente al año)</div>
+
+  <h2>Valores por categoría</h2>
+  <div class="barctl" style="margin-bottom:0">
+    <button class="btn" id="csvBtn">Descargar tabla (CSV)</button>
+  </div>
+  <table class="vals" id="tbl"></table>
+
+  <h2>Mapeo de vectores → escenario</h2>
+  <div class="sub" style="margin-bottom:6px">Cada vector se asigna a un escenario (o a ninguno). Cambia cualquiera y todo se recalcula. Como cada vector va a un solo escenario, no hay doble conteo.</div>
+  <button class="btn" id="resetBtn" style="font-family:Arial;font-size:13px">Restaurar mapeo por defecto</button>
+  <div class="mapwrap" id="mapwrap"></div>
+
+  <div class="nota" id="notaVacias"></div>
+  <div class="nota">El nivel de probabilidad usa P(≥1 incidente al año)=1−e<sup>−λ</sup> sobre el λ de la categoría (suma de los pesos de sus vectores × λ total). VaR99 y p99 se simulan por Poisson compuesta con semilla fija (resultados estables). λ total = 3 incidentes/año.</div>
+
+  <details><summary>Nota metodológica sobre el nivel agregado</summary>
+  <p style="color:var(--soft);max-width:680px">El punto agregado (marcado en negro) representa el riesgo de toda la organización: probabilidad de al menos un incidente de cualquier tipo en el año, e impacto agregado de la cartera completa según el criterio elegido. Para el VaR99 agregado, la simulación suma la pérdida anual de todos los vectores asignados año a año, por lo que recoge la diversificación temporal (no es la suma de los VaR por categoría).</p>
+  </details>
+</div>
+
+<script>
+const LAMBDA_TOTAL = 3.0;
+const N = 40000;
+
+const VECTORS = [
+ {id:"Phishing", mu:15.2671, sigma:0.6094, peso:0.0714},
+ {id:"Ransomware", mu:15.1543, sigma:0.8287, peso:0.1964},
+ {id:"Cadena sum.", mu:15.1683, sigma:0.7816, peso:0.067},
+ {id:"Explot. vuln.", mu:15.1775, sigma:0.7114, peso:0.0893},
+ {id:"Credenciales", mu:15.3119, sigma:0.7962, peso:0.0982},
+ {id:"Error sist.", mu:14.9417, sigma:0.8833, peso:0.1027},
+ {id:"Insider", mu:15.3803, sigma:0.5633, peso:0.0312},
+ {id:"DDoS", mu:11.6674, sigma:0.9204, peso:0.3438},
+];
+
+const CATEGORIES = ["Ransomware","Interrupción de proceso de negocio por ciberataque","Fuga de datos",
+ "Denegación de servicio","Explotación de vulnerabilidad","Cadena de suministro","APT en redes","Revelación de información"];
+
+const CAT_SHORT = {
+ "Ransomware":"Ransomware",
+ "Interrupción de proceso de negocio por ciberataque":"Interrupción negocio",
+ "Fuga de datos":"Fuga de datos",
+ "Denegación de servicio":"Den. servicio",
+ "Explotación de vulnerabilidad":"Explot. vuln.",
+ "Cadena de suministro":"Cadena sum.",
+ "APT en redes":"APT en redes",
+ "Revelación de información":"Revelación info",
+};
+function catShort(c){ return CAT_SHORT[c]||c; }
+
+const DEFAULT_MAP = {
+ "Ransomware":"Ransomware",
+ "Error sist.":"Interrupción de proceso de negocio por ciberataque",
+ "Credenciales":"Fuga de datos",
+ "DDoS":"Denegación de servicio",
+ "Explot. vuln.":"Explotación de vulnerabilidad",
+ "Cadena sum.":"Cadena de suministro",
+ "Phishing":"APT en redes",
+ "Insider":"Revelación de información",
+};
+let assign = Object.assign({}, DEFAULT_MAP);  // vectorId -> categoría | undefined
+
+// ---------- RNG con semilla (mulberry32) ----------
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+let rand = mulberry32(7);
+function randn(){ let u=0,v=0; while(!u)u=rand(); while(!v)v=rand(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function randPoisson(lam){ if(lam<=0)return 0; const L=Math.exp(-lam); let k=0,p=1; do{k++;p*=rand();}while(p>L); return k-1; }
+function quantile(sorted,q){ const i=(sorted.length-1)*q,lo=Math.floor(i),hi=Math.ceil(i); return lo===hi?sorted[lo]:sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo); }
+
+// ---------- Precálculo por vector (una vez) ----------
+const VSIM = {};   // id -> {annual:Float64Array(N), incidents:[...], meanAnnual, lam}
+function precompute(){
+  rand = mulberry32(7);  // reiniciar semilla para reproducibilidad
+  for(const v of VECTORS){
+    const lam = LAMBDA_TOTAL * v.peso;
+    const annual = new Float64Array(N);
+    const incidents = [];
+    for(let y=0;y<N;y++){
+      const n = randPoisson(lam);
+      let s=0;
+      for(let i=0;i<n;i++){ const c=Math.exp(v.mu+v.sigma*randn()); s+=c; incidents.push(c); }
+      annual[y]=s;
+    }
+    VSIM[v.id] = {annual, incidents, meanAnnual: lam*Math.exp(v.mu+v.sigma*v.sigma/2), lam};
+  }
+}
+
+// ---------- Escalas ----------
+const PROB_NIV=[[0.10,"Remota","≤10%"],[0.30,"Posible","11–30%"],[0.50,"Muy posible","31–50%"],[0.80,"Probable","51–80%"],[1.01,"Muy probable","≥81%"]];
+const IMP_NIV=[[5e6,"Muy Bajo"],[20e6,"Bajo"],[40e6,"Medio"],[100e6,"Alto"],[1e15,"Muy Alto"]];
+const IMP_ORDER=["Muy Alto","Alto","Medio","Bajo","Muy Bajo"];
+const PROB_ORDER=["Remota","Posible","Muy posible","Probable","Muy probable"];
+const GRID={ "Muy Alto":["mod","alto","crit","crit","crit"],"Alto":["bajo","mod","alto","crit","crit"],
+ "Medio":["leve","bajo","mod","alto","crit"],"Bajo":["leve","leve","bajo","mod","alto"],
+ "Muy Bajo":["leve","leve","leve","bajo","mod"] };
+const COLOR={leve:"#2E9E5B",bajo:"#8DC152",mod:"#F2C500",alto:"#EF8B2C",crit:"#D84330"};
+const NIVEL_NOMBRE={leve:"Leve",bajo:"Bajo",mod:"Moderado",alto:"Alto",crit:"Crítico"};
+const CRIT_DESC={
+ p99:"p99 del incidente: cuánto cuesta un incidente grave de la categoría (1 de cada 100). Escenario adverso unitario.",
+ var99:"VaR99 (año malo): pérdida anual agregada de la categoría que solo se supera 1 de cada 100 años.",
+ esperada:"Pérdida anual esperada: media anual. Tiende a infrarrepresentar, porque diluye los años sin incidente."
+};
+function probNivel(p){ for(const x of PROB_NIV)if(p<=x[0])return x[1]; return "Muy probable"; }
+function impNivel(v){ for(const x of IMP_NIV)if(v<x[0])return x[1]; return "Muy Alto"; }
+function fmtEur(x){ if(!x)return "—"; if(x>=1e6)return (x/1e6).toFixed(1)+" M€"; if(x>=1e3)return (x/1e3).toFixed(0)+" k€"; return Math.round(x)+" €"; }
+
+let criterio="p99";
+let showAgg=true;
+
+// ---------- Cálculo por categoría según asignación ----------
+function vectorsOf(cat){ return VECTORS.filter(v=>assign[v.id]===cat).map(v=>v.id); }
+
+function statsFor(vecIds){
+  if(vecIds.length===0) return null;
+  let lam=0, esperada=0;
+  const annual=new Float64Array(N);
+  let incidents=[];
+  for(const id of vecIds){
+    const s=VSIM[id]; lam+=s.lam; esperada+=s.meanAnnual;
+    for(let y=0;y<N;y++) annual[y]+=s.annual[y];
+    incidents=incidents.concat(s.incidents);
+  }
+  const prob=1-Math.exp(-lam);
+  const annualSorted=Array.from(annual).sort((a,b)=>a-b);
+  const incSorted=incidents.sort((a,b)=>a-b);
+  return { lam, prob, esperada,
+    var99: quantile(annualSorted,0.99),
+    p99: incSorted.length? quantile(incSorted,0.99):0 };
+}
+
+function rows(){
+  const out=[];
+  for(const cat of CATEGORIES){
+    const vecIds=vectorsOf(cat);
+    if(vecIds.length===0){ out.push({cat,vecs:[],vacia:true}); continue; }
+    const st=statsFor(vecIds);
+    out.push({cat,vecs:vecIds,vacia:false,...st});
+  }
+  return out;
+}
+function aggStats(){
+  const all=VECTORS.filter(v=>assign[v.id]).map(v=>v.id);
+  return statsFor(all);
+}
+
+// ---------- Render ----------
+function buildMatrix(rws, agg){
+  const place={}; PROB_ORDER.forEach(p=>IMP_ORDER.forEach(i=>place[i+"|"+p]=[]));
+  rws.forEach(d=>{ if(d.vacia)return; place[impNivel(d[criterio])+"|"+probNivel(d.prob)].push({t:catShort(d.cat),agg:false}); });
+  if(showAgg && agg){ place[impNivel(agg[criterio])+"|"+probNivel(agg.prob)].push({t:"AGREGADO",agg:true}); }
+  let h="";
+  IMP_ORDER.forEach((imp,ri)=>{
+    h+="<tr>";
+    h+= ri===2 ? "<td class='ytitle'>Impacto</td>" : "<td></td>";
+    h+="<td class='ylab'>"+imp+"</td>";
+    PROB_ORDER.forEach((pr,ci)=>{
+      const chips=place[imp+"|"+pr].map(c=>"<span class='chip"+(c.agg?" agg":"")+"'>"+c.t+"</span>").join("");
+      h+="<td class='cell' style='background:"+COLOR[GRID[imp][ci]]+"'>"+chips+"</td>";
+    });
+    h+="</tr>";
+  });
+  h+="<tr><td></td><td></td>";
+  PROB_NIV.forEach(p=>{ h+="<td class='xlab'><b>"+p[1]+"</b>"+p[2]+"</td>"; });
+  h+="</tr>";
+  document.getElementById("mx").innerHTML=h;
+}
+
+function nivelRiesgo(d){ const ci=PROB_ORDER.indexOf(probNivel(d.prob)), inv=impNivel(d[criterio]); return GRID[inv][IMP_ORDER.indexOf(inv)>=0?ci:ci]; }
+
+function buildTable(rws, agg){
+  let h="<thead><tr><th>Escenario</th><th>Vectores</th><th style='text-align:right'>λ/año</th>"
+    +"<th style='text-align:right'>P(≥1 año)</th><th>Probabilidad</th><th style='text-align:right'>Impacto (€)</th>"
+    +"<th>Nivel impacto</th><th>Riesgo</th></tr></thead><tbody>";
+  rws.forEach(d=>{
+    if(d.vacia){ h+="<tr class='vacia'><td>"+d.cat+"</td><td colspan='7'>sin vector asignado — casilla vacía</td></tr>"; return; }
+    const pn=probNivel(d.prob), inv=impNivel(d[criterio]);
+    const key=GRID[inv][PROB_ORDER.indexOf(pn)];
+    h+="<tr><td>"+d.cat+"</td><td class='vecs'>"+d.vecs.join(", ")+"</td>"
+      +"<td class='num'>"+d.lam.toFixed(2)+"</td><td class='num'>"+(d.prob*100).toFixed(0)+"%</td>"
+      +"<td>"+pn+"</td><td class='num'>"+fmtEur(d[criterio])+"</td><td>"+inv+"</td>"
+      +"<td><span class='badge' style='background:"+COLOR[key]+(key==='crit'?";color:#fff":"")+"'>"+NIVEL_NOMBRE[key]+"</span></td></tr>";
+  });
+  if(agg){
+    const pn=probNivel(agg.prob), inv=impNivel(agg[criterio]);
+    const key=GRID[inv][PROB_ORDER.indexOf(pn)];
+    h+="<tr class='agg'><td>AGREGADO (organización)</td><td class='vecs'>todos los asignados</td>"
+      +"<td class='num'>"+agg.lam.toFixed(2)+"</td><td class='num'>"+(agg.prob*100).toFixed(0)+"%</td>"
+      +"<td>"+pn+"</td><td class='num'>"+fmtEur(agg[criterio])+"</td><td>"+inv+"</td>"
+      +"<td><span class='badge' style='background:"+COLOR[key]+(key==='crit'?";color:#fff":"")+"'>"+NIVEL_NOMBRE[key]+"</span></td></tr>";
+  }
+  h+="</tbody>";
+  document.getElementById("tbl").innerHTML=h;
+}
+
+function buildMap(){
+  let h="";
+  VECTORS.forEach(v=>{
+    let opts="<option value=''>— sin asignar —</option>";
+    CATEGORIES.forEach(c=>{ opts+="<option value=\""+c+"\""+(assign[v.id]===c?" selected":"")+">"+c+"</option>"; });
+    h+="<div class='maprow'><span>"+v.id+"</span><select data-v=\""+v.id+"\">"+opts+"</select></div>";
+  });
+  document.getElementById("mapwrap").innerHTML=h;
+  document.querySelectorAll("#mapwrap select").forEach(sel=>{
+    sel.addEventListener("change",e=>{
+      const vid=e.target.dataset.v, val=e.target.value;
+      if(val) assign[vid]=val; else delete assign[vid];
+      render();
+    });
+  });
+}
+
+function buildNotaVacias(rws){
+  const v=rws.filter(d=>d.vacia).map(d=>d.cat);
+  document.getElementById("notaVacias").innerHTML = v.length
+    ? "Categorías sin vector asignado (casilla vacía): <b>"+v.join("</b>, <b>")+"</b>."
+    : "Todas las categorías tienen al menos un vector asignado.";
+}
+
+let LAST_ROWS=[], LAST_AGG=null;
+function render(){
+  document.getElementById("critDesc").textContent=CRIT_DESC[criterio];
+  const rws=rows(); const agg=aggStats();
+  LAST_ROWS=rws; LAST_AGG=agg;
+  buildMatrix(rws,agg); buildTable(rws,agg); buildNotaVacias(rws);
+}
+
+// CSV
+function toCSV(){
+  const head=["Escenario","Vectores","lambda_anual","P_al_menos_1_pct","Probabilidad_nivel",
+    "Criterio","Impacto_eur","Impacto_nivel","Riesgo"];
+  const lines=[head.join(";")];
+  const dump=(cat,vecs,d)=>{
+    if(!d){ lines.push([cat,vecs,"","","",criterio,"","","(vacía)"].join(";")); return; }
+    const pn=probNivel(d.prob), inv=impNivel(d[criterio]);
+    const key=GRID[inv][PROB_ORDER.indexOf(pn)];
+    lines.push([cat, '"'+vecs+'"', d.lam.toFixed(3), (d.prob*100).toFixed(1), pn, criterio,
+      Math.round(d[criterio]), inv, NIVEL_NOMBRE[key]].join(";"));
+  };
+  LAST_ROWS.forEach(d=>dump(d.cat, d.vacia?"":d.vecs.join(", "), d.vacia?null:d));
+  if(LAST_AGG) dump("AGREGADO (organizacion)","todos los asignados",LAST_AGG);
+  return lines.join("\n");
+}
+function download(){
+  const blob=new Blob(["\ufeff"+toCSV()],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download="matriz_escenarios_"+criterio+".csv"; a.click(); URL.revokeObjectURL(url);
+}
+
+document.getElementById("seg").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  criterio=b.dataset.k;
+  document.querySelectorAll("#seg button").forEach(x=>x.classList.toggle("on",x===b));
+  render();
+});
+document.getElementById("aggTog").addEventListener("change",e=>{ showAgg=e.target.checked; render(); });
+document.getElementById("csvBtn").addEventListener("click",download);
+document.getElementById("resetBtn").addEventListener("click",()=>{ assign=Object.assign({},DEFAULT_MAP); buildMap(); render(); });
+
+precompute();
+buildMap();
+render();
+</script>
+</body>
+</html>
