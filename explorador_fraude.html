@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Explorador de riesgo de fraude (RSIT)</title>
+<style>
+  :root{
+    --dark:#0A2540; --blue:#065A82; --teal:#1C7293; --mint:#02C39A;
+    --grey:#64748B; --lgrey:#CBD5E1; --bg:#F8FAFC; --red:#C44E52; --amber:#E8A93C;
+    --purple:#7B6CA8; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+       background:var(--bg);color:#1A1A2E;line-height:1.5;padding:24px;max-width:1180px;margin:0 auto}
+  h1{font-size:26px;color:var(--dark);margin-bottom:4px}
+  h3{font-size:15px;color:var(--dark);margin:22px 0 10px}
+  .sub{color:var(--grey);font-size:14px;margin-bottom:20px}
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:20px}
+  @media(max-width:820px){.layout{grid-template-columns:1fr}}
+  .panel{background:var(--card);border:1px solid var(--lgrey);border-radius:10px;padding:18px;
+         box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:18px}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--teal);margin-bottom:14px}
+  label{display:block;font-size:13px;font-weight:600;color:var(--dark);margin:14px 0 6px}
+  .val{color:var(--blue);font-weight:700}
+  input[type=range]{width:100%;accent-color:var(--blue)}
+  input[type=range]:disabled{accent-color:var(--lgrey);opacity:.5}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--lgrey);border-radius:10px;padding:14px;
+       box-shadow:0 1px 3px rgba(0,0,0,.06);border-top:3px solid var(--blue)}
+  .kpi .k{font-size:11px;color:var(--grey);text-transform:uppercase;letter-spacing:.5px}
+  .kpi .v{font-size:24px;font-weight:700;color:var(--dark);margin-top:4px;font-variant-numeric:tabular-nums}
+  .kpi.alt{border-top-color:var(--mint)} .kpi.warn{border-top-color:var(--red)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid #EEF2F6}
+  th{background:var(--dark);color:#fff;font-weight:600;text-align:right;position:sticky;top:0}
+  th:first-child,td:first-child{text-align:left}
+  tr:hover td{background:#F4F8FB}
+  td input[type=number]{width:74px;padding:4px 6px;border:1px solid var(--lgrey);border-radius:6px;
+       text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+  td input[type=checkbox]{accent-color:var(--blue);transform:scale(1.1)}
+  .grpB td:first-child{color:var(--grey)}
+  .bar{height:9px;border-radius:5px;display:inline-block;vertical-align:middle}
+  canvas{width:100%;height:auto;background:var(--card);border:1px solid var(--lgrey);border-radius:10px;
+          padding:10px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .note{font-size:12px;color:var(--grey);font-style:italic;margin-top:6px}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#E3EEF4;
+        color:#0A4A6B;font-weight:600;margin-left:8px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .seg{display:inline-flex;border:1px solid var(--lgrey);border-radius:8px;overflow:hidden}
+  .seg button{border:0;background:#fff;color:var(--dark);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;flex:1}
+  .seg button.on{background:var(--blue);color:#fff}
+  .toolbar .lbl{font-size:12px;color:var(--grey);font-weight:600}
+  .btn{border:1px solid var(--lgrey);background:#fff;color:var(--dark);padding:6px 12px;border-radius:8px;
+       font-size:12px;font-weight:600;cursor:pointer}
+  .btn:hover{background:#F4F8FB}
+  .recon{font-size:13px;font-weight:600;padding:8px 12px;border-radius:8px;background:#EAF4EE;color:#1B6B45;
+       border:1px solid #BFE3CE}
+  .recon.warn{background:#FFF4D6;color:#9A6A00;border-color:#F0DDA0}
+  .prov{font-size:12px;color:var(--grey);background:#F1F5F9;border:1px solid var(--lgrey);
+        border-radius:8px;padding:10px 12px;margin-bottom:14px}
+  .alarm{font-size:12px;background:#FBEAEA;border:1px solid #E7B7B9;color:#8A2F32;border-radius:8px;
+        padding:8px 12px;margin-top:8px}
+  .report{background:var(--card);border:1px solid var(--lgrey);border-radius:10px;padding:22px;
+        box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .report h2{font-size:18px;color:var(--dark);margin-bottom:6px}
+  .report p{font-size:14px;margin:10px 0;color:#1A1A2E}
+  .report ul{margin:8px 0 8px 20px;font-size:14px}
+  .report li{margin:4px 0}
+  .report .src{font-size:12px;color:var(--grey);margin-top:6px}
+  .tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;
+       text-transform:uppercase;letter-spacing:.4px}
+  .tag.modelo{background:#E3EEF4;color:#0A4A6B}
+  .tag.dato{background:#E5F4EE;color:#136B4A}
+  .tag.ext{background:#FBEAEA;color:#8A2F32}
+  .footer{margin-top:20px;font-size:12px;color:var(--grey);border-top:1px solid var(--lgrey);padding-top:12px}
+</style>
+</head>
+<body>
+  <h1>Explorador de riesgo de fraude (RSIT) <span class="pill" id="datapill">datos: benchmark + VCDB (Línea Fraude)</span></h1>
+  <p class="sub">Categoría RSIT <b>Fraude</b>: suplantación, uso ilegítimo de credenciales y propiedad intelectual.
+     Ahora hay dos bases de severidad: el <b>benchmark</b> (prior del sector) y los <b>datos de Línea Fraude</b> (VCDB,
+     n=50 incidentes con pérdida, global). El selector de fuente las compara. El desglose por subcategoría sigue siendo
+     una capa externa editable.</p>
+
+  <!-- ====================== BLOQUE AGREGADO ====================== -->
+  <h3>1 · Fraude agregado <span class="tag modelo">severidad seleccionable</span></h3>
+  <div class="layout">
+    <div class="panel">
+      <h2>Escenario</h2>
+
+      <label>Fuente de severidad</label>
+      <span class="seg" id="srcSeg" style="display:flex;width:100%">
+        <button data-s="benchmark" class="on">Benchmark</button>
+        <button data-s="vcdb">VCDB datos</button>
+        <button data-s="mezcla">Mezcla</button>
+      </span>
+      <p class="note">Benchmark: prior del sector (μ=14,21, σ=0,94). VCDB: datos reales de Línea Fraude (μ=13,51, σ cruda=3,12,
+         n=50, global). Mezcla: interpolación ilustrativa, no el posterior ajustado.</p>
+
+      <label>Peso de los datos (solo Mezcla): <span class="val" id="pesoLabel">0.50</span></label>
+      <input type="range" id="peso" min="0" max="1" step="0.05" value="0.5" disabled>
+
+      <label>Tope de robustez (σ máx): <span class="val" id="smaxLabel">1.50</span></label>
+      <input type="range" id="smax" min="0.94" max="3.2" step="0.02" value="1.5">
+      <p class="note">El modelo no usa la σ cruda: la acota vía ν≥4 y anclaje al benchmark. Este control ilustra el efecto
+         sobre la cola.</p>
+
+      <label>Incidentes de fraude al año (λ Fraude): <span class="val" id="lamLabel">0.27</span></label>
+      <input type="range" id="lambda" min="0.05" max="3" step="0.01" value="0.27">
+      <p class="note">Canónico 0,27 (= λ total 3 × peso de prevalencia 0,09).</p>
+
+      <label>Umbral de coste a vigilar: <span class="val" id="thrLabel">10 M€</span></label>
+      <input type="range" id="thr" min="0.05" max="40" step="0.05" value="10">
+    </div>
+
+    <div>
+      <div class="kpis">
+        <div class="kpi"><div class="k">Pérdida anual esperada</div><div class="v" id="kpiAnnual">—</div></div>
+        <div class="kpi alt"><div class="k">p99 del incidente (σ efectiva)</div><div class="v" id="kpiP99">—</div></div>
+        <div class="kpi warn"><div class="k">P(≥1 incidente de fraude/año)</div><div class="v" id="kpiProb">—</div></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="k">Año malo: VaR 99% (1 de cada 100)</div><div class="v" id="kpiVar99">—</div></div>
+        <div class="kpi warn"><div class="k">Año extremo: VaR 99,5% (1 de cada 200)</div><div class="v" id="kpiSolv">—</div></div>
+        <div class="kpi alt"><div class="k">Cola del año malo: TVaR 99%</div><div class="v" id="kpiTvar">—</div></div>
+      </div>
+      <p class="note" id="baseNote"></p>
+      <div class="alarm" id="alarmBox" style="display:none"></div>
+      <canvas id="chartCurve" width="820" height="300"></canvas>
+      <p class="note" id="thrNote"></p>
+    </div>
+  </div>
+
+  <!-- ====================== DESGLOSE POR SUBCATEGORÍA ====================== -->
+  <h3>2 · Desglose por subcategoría <span class="tag ext">capa externa · editable</span></h3>
+  <div class="prov">
+    <b>Procedencia.</b> Los pesos y multiplicadores por defecto son estimación a partir del ranking de la CFCA
+    (encuestas 2023 y 2025) y juicio experto, <b>no</b> del posterior. El reparto se aplica sobre la pérdida agregada de la
+    <b>fuente seleccionada</b> arriba; el VaR riguroso se reporta a nivel agregado, no sumando subcategorías. El grupo
+    "revenue assurance" (IRSF, Wangiri, PBX, SIM box) suele gestionarse fuera del incidente RSIT y va desactivado por defecto.
+  </div>
+  <div class="panel">
+    <div class="toolbar">
+      <span class="lbl">Perfil de severidad:</span>
+      <span class="seg" id="presetSeg">
+        <button data-p="uniforme" class="on">uniforme (reconcilia)</button>
+        <button data-p="industria">perfil industria (ilustrativo)</button>
+      </span>
+      <button class="btn" id="toggleB">Incluir revenue assurance</button>
+      <button class="btn" id="resetBtn">Restaurar</button>
+      <button class="btn" id="csvBtn">Descargar CSV</button>
+      <span class="recon" id="reconBox" style="margin-left:auto">—</span>
+    </div>
+    <table id="subTbl">
+      <thead><tr>
+        <th>Subcategoría</th><th>Grupo</th><th>Incluir</th><th>Peso</th><th>×Sev</th>
+        <th>λ/año</th><th>Mediana</th><th>p99 incid.</th><th>Pérdida anual</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="note">Peso = reparto de frecuencia (normalizado sobre las incluidas). ×Sev = multiplicador de severidad
+       respecto a la mediana agregada (1,00 = hereda la severidad de la fuente). Con todos los ×Sev a 1,00 la suma
+       reconcilia con el agregado.</p>
+    <canvas id="chartSub" width="820" height="300"></canvas>
+  </div>
+
+  <!-- ====================== INFORME ====================== -->
+  <h3>3 · Informe de resultados</h3>
+  <div class="report">
+    <h2>Riesgo de fraude — categoría RSIT Fraude</h2>
+    <p>Perspectiva de la telco estimando su propio riesgo (provisión, capital, ciberseguro). Hasta ahora Fraude se modelaba
+       <b>solo con benchmark</b>. La minería del VCDB completo (Línea Fraude) aporta por fin <b>datos reales de severidad</b>:
+       762 incidentes de fraude por acción (phishing, pretexting, scam, forgery, uso de credenciales robadas), de los que
+       <b>50 traen pérdida divulgada</b> (solo 7 en la UE). Sirve para romper el benchmark-only, pero con cautelas
+       importantes que se detallan abajo.</p>
+
+    <h3>Benchmark frente a datos <span class="tag dato">Línea Fraude</span></h3>
+    <table style="margin-bottom:6px">
+      <thead><tr><th>Magnitud (por incidente)</th><th>Benchmark (prior)</th><th>VCDB σ cruda</th><th>VCDB σ acotada (1,5)</th></tr></thead>
+      <tbody>
+        <tr><td>μ (log-EUR)</td><td>14,21</td><td>13,51</td><td>13,51</td></tr>
+        <tr><td>σ (log-EUR)</td><td>0,94</td><td>3,12</td><td>1,50 (acotada)</td></tr>
+        <tr><td>Mediana</td><td>1,48 M€</td><td>0,74 M€</td><td>0,74 M€</td></tr>
+        <tr><td>Media</td><td>2,30 M€</td><td>≈ 96 M€</td><td>2,28 M€</td></tr>
+        <tr><td>p99 del incidente</td><td>13,17 M€</td><td>≈ 1.050 M€</td><td>24,3 M€</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Las cifras del benchmark son el recálculo en vivo con σ plug-in; la tabla de severidad publicada del
+       pipeline las reporta algo más altas al incorporar la incertidumbre de parámetros (media 2,72 M€, p99 18,53 M€). La
+       mediana y el VaR coinciden en ambas bases.</p>
+
+    <h3>Lectura</h3>
+    <p>Los datos reales <b>bajan la mediana</b> de fraude de 1,48 M€ a unos 0,74 M€ (más fraudes pequeños de lo que sugería
+       el benchmark). Pero su <b>σ cruda de 3,12</b> es insostenible: aplicada a una lognormal plana daría un p99 de
+       <b>≈ 1.050 M€</b> y una media de ≈ 96 M€ por incidente, dominados por un puñado de megacasos (máximo 334 M$ en n=50).
+       Es exactamente la patología que el modelo ya neutraliza con ν≥4 y el anclaje de σ al benchmark (P5.1/P5.2). Acotando
+       σ a un valor defendible (≈1,5), Fraude queda como una categoría de <b>mediana más baja y cola algo más pesada</b> que
+       el benchmark, no como un riesgo de mil millones. El control "tope de robustez" de arriba permite ver ese tránsito.</p>
+
+    <h3>Límites declarados</h3>
+    <ul>
+      <li><b>Global, no UE.</b> De los 50 incidentes con pérdida, solo 7 son de la UE. La n usable obliga a aceptar datos
+          globales y la conversión USD→EUR 0,92, más la capitalización HICP.</li>
+      <li><b>Sesgo de selección al alza.</b> Los 50 son justo los incidentes que divulgaron cifra (≈3% del VCDB tiene
+          importe), un subconjunto que tiende a recoger los casos grandes; la cola observada exagera la real.</li>
+      <li><b>Frontera credenciales robadas vs Intrusión.</b> 445 de los 762 son "uso de credenciales robadas", que según el
+          caso son Fraude (uso ilegítimo) o Intrusión (compromiso de cuenta). La regla de asignación está por decidir.</li>
+      <li><b>Severidad cruda no integrada.</b> Esta herramienta ilustra el dato; el benchmark sigue siendo la base canónica
+          del pipeline hasta que Línea Fraude se integre y robustifique formalmente como verosimilitud.</li>
+      <li><b>Subcategorías sin posterior.</b> El desglose se ancla a CFCA y juicio; ningún número del reparto es posterior.</li>
+    </ul>
+    <p class="src"><b>Fuentes:</b> severidad de datos: VERIS Community Database (vz-risk/VCDB, &gt;8.000 incidentes), subconjunto
+       de fraude con pérdida divulgada (Línea Fraude). Benchmark y prior: IBM CODB, DBIR, ENISA. Desglose de subcategorías:
+       CFCA Global Telecom Fraud Loss Survey 2023/2025. <b>Hallazgo colateral:</b> los 26 incidentes VERIS "Misuse" del
+       dataset europeo alimentan Security policy (re-mapeo aparte), no Fraude.</p>
+  </div>
+
+  <div class="footer">
+    Modelo bayesiano de severidad lognormal por categoría RSIT. Fraude (benchmark): μ=14,2093, σ=0,9389. Fraude (VCDB Línea
+    Fraude, EUR@0,92): μ=13,514, σ=3,119 cruda, n=50. VaR/TVaR por simulación Poisson compuesta con la σ efectiva (acotada).
+    <b>P(≥1/año)</b> bajo Poisson(λ): 1 − e<sup>−λ</sup>. El desglose por subcategoría es una capa de planificación externa y editable.
+  </div>
+
+<script>
+// ── Bases de severidad de Fraude (log-EUR) ─────────────────────────────────
+const SRC={
+  benchmark:{mu:14.2093, sigmaRaw:0.9389, label:"Benchmark (prior)"},
+  vcdb:     {mu:13.514,  sigmaRaw:3.119,  label:"VCDB Línea Fraude (datos)"},
+};
+let fuente="benchmark";
+const LAM_CANON=0.27;
+
+// ── Subcategorías (capa externa, editable) ──────────────────────────────────
+const SUB_DEF=[
+ {id:"susc",   nombre:"Suscripción / identidad (alta fraudulenta, credit mule)", grupo:"A", w:45, sevInd:0.7, color:"#065A82"},
+ {id:"ato",    nombre:"Apropiación de cuenta / SIM swap",                         grupo:"A", w:35, sevInd:1.3, color:"#C44E52"},
+ {id:"bec",    nombre:"Smishing / phishing dirigido / BEC",                       grupo:"A", w:20, sevInd:1.0, color:"#1C7293"},
+ {id:"irsf",   nombre:"IRSF (reparto internacional de ingresos)",                 grupo:"B", w:30, sevInd:1.8, color:"#E8A93C"},
+ {id:"wangiri",nombre:"Wangiri / suplantación de numeración / robocall",          grupo:"B", w:18, sevInd:0.5, color:"#7B6CA8"},
+ {id:"pbx",    nombre:"PBX / IP-PBX / toll fraud",                                grupo:"B", w:25, sevInd:1.6, color:"#02C39A"},
+ {id:"simbox", nombre:"Bypass de interconexión / SIM box / traffic pumping",      grupo:"B", w:12, sevInd:1.2, color:"#3C8DAD"},
+];
+let SUB=SUB_DEF.map(d=>({...d, on:d.grupo==="A", mult:1.0}));
+let preset="uniforme";
+
+// ── utilidades lognormal ────────────────────────────────────────────────────
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));
+  const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
+  return x>=0?y:-y;}
+function normCdf(z){return 0.5*(1+erf(z/Math.SQRT2));}
+function probit(p){
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pl=0.02425; let q,r;
+  if(p<pl){q=Math.sqrt(-2*Math.log(p));return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p<=1-pl){q=p-0.5;r=q*q;return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+  q=Math.sqrt(-2*Math.log(1-p));return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+}
+function lognMean(mu,s){return Math.exp(mu+s*s/2);}
+function lognQuantile(mu,s,p){return Math.exp(mu+s*probit(p));}
+function probSupera(mu,s,x){ if(x<=0)return 1; const z=(Math.log(x)-mu)/s; return 1-normCdf(z);}
+function fmtEur(v){
+  if(!isFinite(v))return "∞";
+  if(v>=1e9)return (v/1e9).toLocaleString("es-ES",{maximumFractionDigits:2})+" mil M€";
+  if(v>=1e6)return (v/1e6).toLocaleString("es-ES",{maximumFractionDigits:2})+" M€";
+  if(v>=1e3)return (v/1e3).toLocaleString("es-ES",{maximumFractionDigits:0})+" k€";
+  return Math.round(v).toLocaleString("es-ES")+" €";}
+const $=id=>document.getElementById(id);
+
+function randn(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function randPoisson(lam){ if(lam<=0)return 0; const L=Math.exp(-lam); let k=0,p=1;
+  do{k++;p*=Math.random();}while(p>L); return k-1; }
+function quantile(sorted,q){ const i=(sorted.length-1)*q, lo=Math.floor(i), hi=Math.ceil(i);
+  return lo===hi?sorted[lo]:sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo); }
+function simularVaR(mu,s,lam){
+  const N=200000; const loss=new Float64Array(N);
+  for(let y=0;y<N;y++){ const n=randPoisson(lam); let pl=0;
+    for(let i=0;i<n;i++) pl+=Math.exp(mu+s*randn()); loss[y]=pl; }
+  const sorted=Array.from(loss).sort((a,b)=>a-b);
+  const v99=quantile(sorted,0.99), v995=quantile(sorted,0.995), v95=quantile(sorted,0.95);
+  const cola=sorted.filter(x=>x>v99);
+  const tvar99=cola.length?cola.reduce((a,b)=>a+b,0)/cola.length:v99;
+  return {v95,v99,v995,tvar99};
+}
+
+// ── parámetros de severidad según la fuente seleccionada ────────────────────
+function sevParams(){
+  const w=parseFloat($("peso").value), smax=parseFloat($("smax").value);
+  let mu,sraw;
+  if(fuente==="benchmark"){ mu=SRC.benchmark.mu; sraw=SRC.benchmark.sigmaRaw; }
+  else if(fuente==="vcdb"){ mu=SRC.vcdb.mu; sraw=SRC.vcdb.sigmaRaw; }
+  else { mu=(1-w)*SRC.benchmark.mu+w*SRC.vcdb.mu; sraw=(1-w)*SRC.benchmark.sigmaRaw+w*SRC.vcdb.sigmaRaw; }
+  return {mu, sraw, seff:Math.min(sraw,smax)};
+}
+
+// ── desglose por subcategoría (sobre la fuente seleccionada) ────────────────
+function computeSub(mu,s,lam){
+  const inc=SUB.filter(d=>d.on);
+  const sumW=inc.reduce((a,d)=>a+(d.w>0?d.w:0),0)||1;
+  const rows=inc.map(d=>{
+    const wn=(d.w>0?d.w:0)/sumW;
+    const muI=mu+Math.log(d.mult>0?d.mult:1e-6);
+    const lamI=lam*wn, ec=lognMean(muI,s);
+    return {...d, wn, lamI, mediana:Math.exp(muI), p99:lognQuantile(muI,s,0.99), perdida:lamI*ec};
+  });
+  const sumLa=rows.reduce((a,r)=>a+r.perdida,0), aggLa=lam*lognMean(mu,s);
+  return {rows,sumLa,aggLa,dev:aggLa>0?(sumLa/aggLa-1):0};
+}
+
+// ── render ──────────────────────────────────────────────────────────────────
+function render(){
+  const lam=parseFloat($("lambda").value), thr=parseFloat($("thr").value)*1e6;
+  const {mu,sraw,seff}=sevParams();
+  $("lamLabel").textContent=lam.toFixed(2);
+  $("thrLabel").textContent=parseFloat($("thr").value).toFixed(2)+" M€";
+  $("pesoLabel").textContent=parseFloat($("peso").value).toFixed(2);
+  $("smaxLabel").textContent=parseFloat($("smax").value).toFixed(2);
+  $("peso").disabled=(fuente!=="mezcla");
+
+  $("kpiAnnual").textContent=fmtEur(lam*lognMean(mu,seff));
+  $("kpiP99").textContent=fmtEur(lognQuantile(mu,seff,0.99));
+  $("kpiProb").textContent=((1-Math.exp(-lam))*100).toFixed(1)+"%";
+  const vt=simularVaR(mu,seff,lam);
+  $("kpiVar99").textContent=fmtEur(vt.v99);
+  $("kpiSolv").textContent=fmtEur(vt.v995);
+  $("kpiTvar").textContent=fmtEur(vt.tvar99);
+
+  const label=fuente==="mezcla"?("Mezcla (peso datos "+parseFloat($("peso").value).toFixed(2)+")"):SRC[fuente].label;
+  $("baseNote").textContent=`Fuente: ${label}. σ del dato = ${sraw.toFixed(2)} · σ efectiva (tope ${parseFloat($("smax").value).toFixed(2)}) = ${seff.toFixed(2)}. Mediana del incidente ${fmtEur(Math.exp(mu))}.`;
+  const ab=$("alarmBox");
+  if(sraw>seff+1e-9){
+    const p99raw=lognQuantile(mu,sraw,0.99);
+    ab.style.display="block";
+    ab.innerHTML=`Con la σ <b>sin acotar</b> (${sraw.toFixed(2)}), el p99 del incidente sería <b>${fmtEur(p99raw)}</b> y la media ${fmtEur(lognMean(mu,sraw))}: insostenible y dominado por unos pocos megacasos. El modelo lo evita acotando σ (ν≥4, anclaje al benchmark).`;
+  } else ab.style.display="none";
+
+  const pSup=probSupera(mu,seff,thr);
+  $("thrNote").textContent=
+    `Probabilidad de que un incidente de fraude supere ${parseFloat($("thr").value).toFixed(2)} M€: ${(pSup*100).toFixed(1)}%. `+
+    `Bajo Poisson(λ=${lam.toFixed(2)}), ver al menos uno así en el año tiene probabilidad ${((1-Math.exp(-lam*pSup))*100).toFixed(1)}%.`;
+
+  const sub=computeSub(mu,seff,lam);
+  const tb=$("subTbl").querySelector("tbody"); tb.innerHTML="";
+  const maxL=Math.max(...sub.rows.map(r=>r.perdida),1);
+  SUB.forEach(d=>{
+    const r=sub.rows.find(x=>x.id===d.id); const tr=document.createElement("tr");
+    if(d.grupo==="B") tr.className="grpB";
+    const lamI=r?r.lamI:0, med=r?r.mediana:0, p99=r?r.p99:0, per=r?r.perdida:0;
+    tr.innerHTML=
+      `<td><span style="color:${d.color}">●</span> ${d.nombre}</td>`+
+      `<td style="text-align:center">${d.grupo}</td>`+
+      `<td style="text-align:center"><input type="checkbox" data-id="${d.id}" data-k="on" ${d.on?"checked":""}></td>`+
+      `<td><input type="number" min="0" step="1" data-id="${d.id}" data-k="w" value="${d.w}"></td>`+
+      `<td><input type="number" min="0" step="0.05" data-id="${d.id}" data-k="mult" value="${d.mult.toFixed(2)}"></td>`+
+      `<td>${d.on?lamI.toFixed(3):"—"}</td>`+
+      `<td>${d.on?fmtEur(med):"—"}</td>`+
+      `<td>${d.on?fmtEur(p99):"—"}</td>`+
+      `<td>${d.on?fmtEur(per):"—"} `+(d.on?`<span class="bar" style="width:${36*per/maxL}px;background:${d.color}"></span>`:"")+`</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("input").forEach(el=>el.addEventListener("change",onCellEdit));
+  const rb=$("reconBox"), pct=sub.dev*100;
+  rb.textContent=`Suma subcategorías ${fmtEur(sub.sumLa)} · agregado ${fmtEur(sub.aggLa)} · desviación ${(pct>=0?"+":"")}${pct.toFixed(1)}%`;
+  rb.className="recon"+(Math.abs(sub.dev)>0.02?" warn":"");
+
+  curveChart($("chartCurve"),{mu,s:seff,thr,rows:sub.rows,
+     showRef:(fuente!=="benchmark"), refMu:SRC.benchmark.mu, refS:SRC.benchmark.sigmaRaw, aggLabel:"Fraude ("+label+")"});
+  subBarChart($("chartSub"),sub.rows);
+}
+
+function onCellEdit(e){
+  const id=e.target.dataset.id, k=e.target.dataset.k, d=SUB.find(x=>x.id===id); if(!d)return;
+  if(k==="on") d.on=e.target.checked;
+  else if(k==="w") d.w=Math.max(0,parseFloat(e.target.value)||0);
+  else if(k==="mult"){ d.mult=Math.max(0,parseFloat(e.target.value)||0); preset="custom"; syncPreset(); }
+  render();
+}
+
+// ── gráfico de densidades ───────────────────────────────────────────────────
+function curveChart(cv, dat){
+  const ctx=cv.getContext("2d"), W=cv.width, H=cv.height, padL=60, padR=20, padT=30, padB=40;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle="#0A2540"; ctx.font="bold 14px Arial";
+  ctx.fillText("Distribución del coste por incidente (densidad, eje log)", padL, 18);
+  const xmin=Math.log(1e4), xmax=Math.log(1e8);
+  const xpix=lx=>padL+(lx-xmin)/(xmax-xmin)*(W-padL-padR);
+  const series=[];
+  if(dat.showRef) series.push({mu:dat.refMu,s:dat.refS,color:"#94A3B8",nombre:"Benchmark (ref.)",lw:1.6,dash:[5,4]});
+  series.push({mu:dat.mu,s:dat.s,color:"#0A2540",nombre:dat.aggLabel,lw:3,dash:[]});
+  dat.rows.forEach(r=>series.push({mu:dat.mu+Math.log(r.mult>0?r.mult:1e-6),s:dat.s,color:r.color,nombre:r.nombre,lw:1.5,dash:[]}));
+  let maxd=0; const curves=series.map(se=>{
+    const pts=[]; for(let i=0;i<=120;i++){const lx=xmin+(xmax-xmin)*i/120;
+      const z=(lx-se.mu)/se.s; const dens=Math.exp(-z*z/2)/(se.s*Math.sqrt(2*Math.PI)); pts.push([lx,dens]); maxd=Math.max(maxd,dens);}
+    return {se,pts};});
+  const ypix=v=>H-padB-(v/maxd)*(H-padT-padB);
+  const tx=xpix(Math.log(dat.thr));
+  ctx.strokeStyle="#C44E52"; ctx.setLineDash([5,4]); ctx.beginPath();
+  ctx.moveTo(tx,padT); ctx.lineTo(tx,H-padB); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle="#C44E52"; ctx.font="11px Arial"; ctx.fillText("umbral",tx+4,padT+10);
+  ctx.fillStyle="#64748B"; ctx.font="11px Arial"; ctx.textAlign="center";
+  [1e4,1e5,1e6,1e7,1e8].forEach(v=>{const x=xpix(Math.log(v)); ctx.fillText(v>=1e6?(v/1e6)+"M":(v/1e3)+"k",x,H-padB+16);});
+  ctx.textAlign="left";
+  curves.forEach(c=>{ctx.strokeStyle=c.se.color;ctx.lineWidth=c.se.lw;ctx.setLineDash(c.se.dash||[]);ctx.beginPath();
+    c.pts.forEach((p,i)=>{const x=xpix(p[0]),y=ypix(p[1]); i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();});
+  ctx.setLineDash([]);
+  let ly=padT+4; ctx.font="11px Arial";
+  series.forEach(se=>{ctx.fillStyle=se.color;ctx.fillRect(W-210,ly,10,10);
+    ctx.fillStyle="#1A1A2E";ctx.fillText(se.nombre.slice(0,30),W-195,ly+9);ly+=15;});
+}
+
+function subBarChart(cv, rows){
+  const ctx=cv.getContext("2d"), W=cv.width, H=cv.height, padL=240, padR=80, padT=30, padB=24;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle="#0A2540"; ctx.font="bold 14px Arial";
+  ctx.fillText("Pérdida anual esperada por subcategoría (M€)", padL, 18);
+  if(!rows.length){ ctx.fillStyle="#64748B"; ctx.font="12px Arial"; ctx.fillText("Sin subcategorías incluidas.", padL, 60); return; }
+  const data=rows.slice().sort((a,b)=>a.perdida-b.perdida), max=Math.max(...data.map(r=>r.perdida),1);
+  const bh=(H-padT-padB)/data.length*0.7, gap=(H-padT-padB)/data.length*0.3;
+  data.forEach((r,i)=>{
+    const y=padT+i*(bh+gap), w=(W-padL-padR)*(r.perdida/max);
+    ctx.fillStyle=r.color; ctx.fillRect(padL,y,w,bh);
+    ctx.fillStyle="#1A1A2E"; ctx.font="12px Arial"; ctx.textAlign="right";
+    ctx.fillText(r.nombre.length>34?r.nombre.slice(0,33)+"…":r.nombre,padL-8,y+bh/2+4);
+    ctx.textAlign="left"; ctx.fillText((r.perdida/1e6).toFixed(3)+" M€",padL+w+6,y+bh/2+4);
+  });
+  ctx.textAlign="left";
+}
+
+// ── controles ───────────────────────────────────────────────────────────────
+function syncPreset(){ $("presetSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.p===preset)); }
+function syncSrc(){ $("srcSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.s===fuente)); }
+$("srcSeg").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ fuente=b.dataset.s; syncSrc(); render(); }));
+$("presetSeg").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+  preset=b.dataset.p; SUB.forEach(d=>{ d.mult = preset==="industria" ? d.sevInd : 1.0; }); syncPreset(); render(); }));
+$("toggleB").addEventListener("click",()=>{
+  const anyB=SUB.some(d=>d.grupo==="B"&&d.on); SUB.forEach(d=>{ if(d.grupo==="B") d.on=!anyB; });
+  $("toggleB").textContent=anyB?"Incluir revenue assurance":"Quitar revenue assurance"; render(); });
+$("resetBtn").addEventListener("click",()=>{
+  SUB=SUB_DEF.map(d=>({...d, on:d.grupo==="A", mult:1.0})); preset="uniforme"; fuente="benchmark"; syncPreset(); syncSrc();
+  $("toggleB").textContent="Incluir revenue assurance";
+  $("lambda").value=LAM_CANON; $("thr").value=10; $("peso").value=0.5; $("smax").value=1.5; render(); });
+$("csvBtn").addEventListener("click",descargarCSV);
+
+function descargarCSV(){
+  const lam=parseFloat($("lambda").value); const {mu,seff,sraw}=sevParams();
+  const sub=computeSub(mu,seff,lam);
+  const num=v=>v.toLocaleString("es-ES",{useGrouping:false,maximumFractionDigits:2});
+  const lines=[];
+  lines.push('"fuente";"'+(fuente)+'";"sigma_cruda";'+num(sraw)+';"sigma_efectiva";'+num(seff)+';"lambda";'+num(lam));
+  lines.push(["subcategoria","grupo","incluida","peso_normalizado_pct","mult_severidad","lambda_anual","mediana_eur","p99_incidente_eur","perdida_anual_eur"].join(";"));
+  SUB.forEach(d=>{ const r=sub.rows.find(x=>x.id===d.id);
+    lines.push([ '"'+d.nombre+'"', d.grupo, d.on?"si":"no", d.on&&r?num(r.wn*100):"", num(d.mult),
+      d.on&&r?num(r.lamI):"", d.on&&r?num(r.mediana):"", d.on&&r?num(r.p99):"", d.on&&r?num(r.perdida):"" ].join(";")); });
+  lines.push("");
+  lines.push('"Agregado ('+fuente+')";;;;;'+num(lam)+';'+num(Math.exp(mu))+';'+num(lognQuantile(mu,seff,0.99))+';'+num(lam*lognMean(mu,seff)));
+  lines.push('"Suma subcategorias incluidas";;;;;;;;'+num(sub.sumLa));
+  const blob=new Blob(["\ufeff"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="desglose_fraude_subcategorias.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+let t;
+["peso","smax","lambda","thr"].forEach(id=>$(id).addEventListener("input",()=>{ clearTimeout(t); t=setTimeout(render,120); }));
+syncSrc(); syncPreset(); render();
+</script>
+</body>
+</html>
