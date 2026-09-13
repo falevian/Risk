@@ -221,6 +221,21 @@
   .paper{padding:10px 13px; border-top:1px solid var(--line); border-right:1px solid var(--line); overflow:hidden;}
   .paper.last-col{border-right:none;}
   .paper.untagged{opacity:.78;}
+
+  /* stacked mobile layout: same track-head/paper markup, no grid, no sideways scroll */
+  .agenda-mobile{display:none;}
+  .agenda-mobile .track-block{
+    border:1px solid var(--line); border-radius:8px; background:var(--surface);
+    margin-bottom:14px; overflow:hidden;
+  }
+  .agenda-mobile .track-block:last-child{margin-bottom:0;}
+  .agenda-mobile .track-head{border-right:none;}
+  .agenda-mobile .track-head + .paper{border-top:none;}
+
+  @media (max-width:700px){
+    .agenda-wrap{display:none;}
+    .agenda-mobile{display:block;}
+  }
   .paper-id{font-family:var(--mono); font-size:10.5px; color:var(--muted);}
   .paper-time{font-family:var(--mono); font-size:10.5px; color:var(--muted);}
   .paper-idrow{display:flex; justify-content:space-between; gap:8px;}
@@ -460,19 +475,22 @@
     return 'axis-none';
   }
 
-  // ---- shared-axis agenda grid: one time column shared by the three rooms ----
+  function trackHeadNode(t, isLastVisual){
+    return el('div', {class:'track-head ' + axisClassFor(t) + (isLastVisual?' last':'')}, [
+      el('div', {class:'track-room'}, [t.line + ' \u00b7 ', el('b', null, [t.room])]),
+      el('div', {class:'track-session'}, [t.sessionTitle]),
+      el('div', {class:'track-chair'}, ['Moderador: ' + t.chair])
+    ]);
+  }
+
+  // ---- shared-axis agenda grid: one time column shared by the three rooms (tablet/desktop) ----
   function agendaGrid(slot){
     const grid = el('div', {class:'agenda'});
     grid.appendChild(el('div', {class:'ax-head'}));
     slot.tracks.forEach((t,ti)=>{
-      grid.appendChild(el('div', {
-        class:'track-head ' + axisClassFor(t) + (ti===2?' last':''),
-        style:'grid-column:' + (ti+2)
-      }, [
-        el('div', {class:'track-room'}, [t.line + ' \u00b7 ', el('b', null, [t.room])]),
-        el('div', {class:'track-session'}, [t.sessionTitle]),
-        el('div', {class:'track-chair'}, ['Moderador: ' + t.chair])
-      ]));
+      const head = trackHeadNode(t, ti===2);
+      head.style.gridColumn = String(ti+2);
+      grid.appendChild(head);
     });
     slot.rowLabels.forEach((lbl,ri)=>{
       grid.appendChild(el('div', {class:'ax-cell', style:'grid-row:' + (ri+2)}, [lbl]));
@@ -485,6 +503,17 @@
       });
     });
     return el('div', {class:'agenda-wrap'}, [grid]);
+  }
+
+  // ---- stacked layout: same data, one room block after another, no sideways scroll (phones) ----
+  function agendaStack(slot){
+    const wrap = el('div', {class:'agenda-mobile'});
+    slot.tracks.forEach(t=>{
+      const block = el('div', {class:'track-block'}, [trackHeadNode(t, true)]);
+      t.papers.forEach(p=> block.appendChild(paperCard(p, true)));
+      wrap.appendChild(block);
+    });
+    return wrap;
   }
 
   function breakBlock(b){
@@ -519,6 +548,7 @@
     }
 
     wrap.appendChild(agendaGrid(slot));
+    wrap.appendChild(agendaStack(slot));
     return wrap;
   }
 
